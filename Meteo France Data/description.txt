@@ -1,0 +1,3 @@
+The Meteo France datas (2000-2020):
+1- Every 3 hours
+2- Mean of every day
