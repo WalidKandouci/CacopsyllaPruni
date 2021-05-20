@@ -4,3 +4,9 @@ library(nimbleTempDev)
 
 baseDir = here()
 setwd(baseDir)
+
+
+CodeEgg <- nimbleCode ({
+
+
+})

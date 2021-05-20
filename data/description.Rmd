@@ -1,0 +1,13 @@
+# The Meteo France data (2000-2020)
+
+1. Every 3 hours in `Data_ALLMeteo_Montpellier.csv`
+2. Mean of every day in `Data_ALLMeteo_Montpellier_mean.csv`
+
+# Psyllid data
+
+The 2005 data is the field experiment data giving counts for the observed stages
+(eggs, the 5 larval stages and adults)
+at a given day, on various individual plants.
+
+There is one `xlsx` file per plant.
+Alternatively, the file `Data2005Workplace.RData` collates all this data.
