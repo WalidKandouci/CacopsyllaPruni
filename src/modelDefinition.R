@@ -41,11 +41,12 @@ psyllidCode <- nimbleCode ({
     # Likelihood
     for (iObs in 1:nObs[tree]) {
       psyllids1B[iObs, 1:nStages] ~ dmultinom(prob = IPMouput[iDate_1B, 1:nStages], )
-      ## 1B is a magic number - we need to generalise some how
+      ## 1B is a magic number - we need to generalise some how - possibly via a ragged array -
       ## the prob vector will come from the IPM
     }
   }
 })
+## TO DO: add ragged array to importData.R
 
 #########################
 ## Create nimble model ##
