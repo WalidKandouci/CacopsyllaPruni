@@ -127,3 +127,18 @@ plotRange = c(min(as.Date(threeNAs$date)) - buffer, max(as.Date(threeNAs$date)) 
 par(mfrow = c(1,1))
 with(subMeteo %>% filter(as.Date(date)>=plotRange[1] & as.Date(date)<=plotRange[2]), plot(date, temperature, typ="l", lwd=3))
 abline(v=(subMeteo %>% filter(time=="00:00:00"))$date, col=rgb(1,0,0,0.5))
+
+
+####################################################
+## Possible evidence of non-3-hour time intervals ##
+####################################################
+table(diff(meteo$date))
+which(diff(subMeteo$date)==2)
+subMeteo$date[85:87] - subMeteo$date[84:86]
+
+##################################
+## Export data to an Rdata file ##
+##################################
+meteo    = subMeteo
+psyllids = dataList
+save(meteo, psyllids, treeNames, nTrees, file="data/data4nimble.Rdata" )
