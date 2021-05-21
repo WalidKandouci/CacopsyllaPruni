@@ -47,7 +47,10 @@ psyllidCode <- nimbleCode ({
   }
 })
 
-# Lists for nimble model: constants, initial values and data
+#########################
+## Create nimble model ##
+#########################
+# Constants
 tempMin  = min(meteo$temperature, na.rm = TRUE)
 tempMax  = max(meteo$temperature, na.rm = TRUE)
 tempVec  = tempMin:tempMax
@@ -66,14 +69,21 @@ Const    = list(
   # data.frame(psyllid_date = psyllids[[which(treeNames=="1B")]]$date, nearest_meteo_date = meteo$date[Const$iDate_1B])
 )
 
-Inits = list( )
+# Initial values for model parameters - tobe updated via MCMC
+Inits = list(
+  aaMean = rep(1, nStages),
+  bbMean = rep(1, nStages),
+  aaMeanSD = rep(1, nStages),
+  bbMeanSD = rep(1, nStages)
+)
 
+# Model data
 Data = list(temperature = meteo$temperature,
             psyllids1B  = (psyllids[[which(treeNames=="1B")]][-1, c("œuf","L1","L2","L3","L4","L5","imago")])
             )
 
-# Create model object
+# Build R version of nimble model
 rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data)
 
-# Compile model
+# Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
