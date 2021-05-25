@@ -25,7 +25,6 @@ lines(Meteo2005$temperature[1:110],
 
 missingMeteo <- na.interp(Meteo2005$temperature)
 
-
 length(missingMeteo) == length(Meteo2005$temperature)
 which(is.na(Meteo2005$temperature))
 missingMeteo[which(is.na(Meteo2005$temperature))]
