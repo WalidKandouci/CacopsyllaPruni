@@ -45,14 +45,14 @@ psyllidCode <- nimbleCode ({
   #############################################################
   for (iStage in 1:nStages) { # iStag = index for {egg, L1, L2, L3, L4, L5, imago}
     ## Priors
-    aaMean[iStage]   ~ dexp(1)
-    aaMeanSD[iStage] ~ dexp(1)
-    bbMean[iStage]   ~ dexp(1)
-    bbMeanSD[iStage] ~ dexp(1)
+    aaMean[iStage] ~ dexp(0.0001)
+    aaSD[iStage]   ~ dexp(0.0001)
+    bbMean[iStage] ~ dexp(2)
+    bbSD[iStage]   ~ dexp(2)
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       # Kontodimas VS Briere ?!
-      parasEgg[iStage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMean[iStage],   bb=bbMean[iStage])   # The mean of the development kernel
-      parasEgg[iStage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMeanSD[iStage], bb=bbMeanSD[iStage]) # The mean + 1 standard deviation for the development kernel
+      parasEgg[iStage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMean[iStage],   bb=bbMean[iStage])   # mean of the development kernel
+      parasEgg[iStage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaSD[iStage], bb=bbSD[iStage]) # standard deviation for the development kernel
       ## Possibly add a parameter transformation step here ???
       devKernelEgg[iStage,iTemp,1:res] <- getMcol1(paras=parasEgg, res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
@@ -115,3 +115,5 @@ rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data)
 
 # Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
+
+seq(0,40,0.01)
