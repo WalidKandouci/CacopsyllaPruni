@@ -1,3 +1,6 @@
+#####################################################################
+## This script is used to import and format psyllid and meteo data ##
+#####################################################################
 library(here)
 library(readxl)
 library(tibble)
@@ -11,15 +14,16 @@ xlxsFiles = dataFiles[grep("xlsx", dataFiles)]
 xlxsFiles = xlxsFiles[grep("Data_2005_Comptage", xlxsFiles)]
 treeNames = sub(",",".",sub(".xlsx","",sub("Data_2005_Comptage_", "", xlxsFiles)))
 nTrees    = length(treeNames)
+stages    = c("mature", "œuf", "L1",  "L2", "L3", "L4", "L5", "imago")
 
 ###########################
 ## Import data to a list ##
 ###########################
 rawDataList = vector("list", nTrees)
 for (ii in 1:nTrees) {
-  rawData       = readxl::read_excel(paste0("data/",xlxsFiles[ii]), col_types=c("guess","guess",rep("numeric",15),"guess"))[,-1]
-  rawData$date  = as.Date(rawData$date, format="%Y-%m-%d %H:%M:%S")
-  rawData$stage = factor(rawData$stage, levels=c("mature","oeuf","L1","L2","L3","L4","L5","imago"))
+  rawData       = readxl::read_excel(paste0("data/",xlxsFiles[ii]), col_types=c("guess",rep("numeric",15),"guess"))
+  rawData$date  = as.POSIXct(rawData$date, format="%Y-%m-%d %H:%M:%S")
+  rawData$stage = factor(rawData$stage, levels=c("mature","œuf","L1","L2","L3","L4","L5","imago"))
   rawDataList[[ii]] = cbind(tree = treeNames[ii], rawData)
   rm(rawData)
 }
@@ -31,7 +35,6 @@ dataList = vector("list", nTrees)
 for (ii in 1:nTrees) {
   x = rawDataList[[ii]]
   y = x %>% select("date") %>% distinct() %>% arrange()
-  stages = c("mature", "oeuf", "L1",  "L2", "L3", "L4", "L5", "imago")
   for (st in stages)
     eval(parse(text=paste0("y$",st,"=0")))
   for (iDate in 1:nrow(y)) {
@@ -43,8 +46,20 @@ for (ii in 1:nTrees) {
         subX[rr,] %>% select(!stage & !tree) %>% rowSums(na.rm=TRUE)
     }
   }
-  dataList[[ii]] = cbind(tree = treeNames[ii], y)
+  dataList[[ii]] = cbind(tree = treeNames[ii], y) %>% relocate(tree, .after=date)
+  if (dataList[[ii]]$mature[1] == 0) {
+    dataList[[ii]]$mature[1] = NA
+  }
 }
+
+###########################################
+## Find first and last dates in the list ##
+###########################################
+dateRange = range(dataList[[1]]$date)
+for (ii in 2:nTrees) {
+  dateRange = range(c(dateRange, dataList[[ii]]$date))
+}
+## "2005-03-16" "2005-07-13"
 
 
 ###################################
@@ -83,3 +98,47 @@ for (ii in 1:nTrees) {
 ## }
 
 ## write.csv2(D_12.1,"D_12.1.csv")
+
+################
+## Meteo data ##
+################
+meteo = readxl::read_excel(paste0("data/",xlxsFiles[ii]), col_types=c("guess",rep("numeric",15),"guess"))
+meteo = read.csv(file="data/Data_ALLMeteo_Montpellier.csv", sep=";", dec=",")[,-1] %>% as_tibble() %>% select(!ID)
+meteo$date = as.POSIXct(meteo$date, format="%Y-%m-%d %H:%M:%S")
+meteo$time = format(meteo$date,'%H:%M:%S')
+meteo$temperature = round(meteo$temperature)
+
+
+## Subset of meteo over study period only
+subMeteo = meteo %>% filter(date >= dateRange[1] & date <= dateRange[2])
+
+## A vector of the times of day in meteo
+times = unique(meteo$time)
+
+## A plot of temperature over the study period
+## Three NAs need imputing
+with(subMeteo, plot(date, temperature, typ="l", lwd=3))
+abline(v = (subMeteo %>% filter(is.na(temperature)))$date, col=rgb(1,0,0,0.4))
+(threeNAs = subMeteo %>% filter(is.na(temperature)))
+
+## Another plot, zooming in on the period around the NAs
+buffer = 7
+plotRange = c(min(as.Date(threeNAs$date)) - buffer, max(as.Date(threeNAs$date)) + buffer)
+par(mfrow = c(1,1))
+with(subMeteo %>% filter(as.Date(date)>=plotRange[1] & as.Date(date)<=plotRange[2]), plot(date, temperature, typ="l", lwd=3))
+abline(v=(subMeteo %>% filter(time=="00:00:00"))$date, col=rgb(1,0,0,0.5))
+
+
+####################################################
+## Possible evidence of non-3-hour time intervals ##
+####################################################
+table(diff(meteo$date))
+which(diff(subMeteo$date)==2)
+subMeteo$date[85:87] - subMeteo$date[84:86]
+
+##################################
+## Export data to an Rdata file ##
+##################################
+meteo    = subMeteo
+psyllids = dataList
+save(meteo, psyllids, treeNames, nTrees, file="data/data4nimble.Rdata" )

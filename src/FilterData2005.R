@@ -1,3 +1,5 @@
+## Please add a header to say what this script does
+
 library(readr)
 Data_ALLMeteo_Montpellier <- as.data.frame(read_csv2("Data_ALLMeteo_Montpellier.csv"))
 Data_ALLMeteo_Montpellier <- Data_ALLMeteo_Montpellier[,-1]
