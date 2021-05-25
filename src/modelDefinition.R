@@ -45,11 +45,12 @@ psyllidCode <- nimbleCode ({
   #############################################################
   for (iStage in 1:nStages) { # iStag = index for {egg, L1, L2, L3, L4, L5, imago}
     ## Priors
-    aaMean[iStage]   ~ dWhatEver()
-    aaMeanSD[iStage] ~ dWhatEver()
-    bbMean[iStage]   ~ dWhatEver()
-    bbMeanSD[iStage] ~ dWhatEver()
+    aaMean[iStage]   ~ dexp(1)
+    aaMeanSD[iStage] ~ dexp(1)
+    bbMean[iStage]   ~ dexp(1)
+    bbMeanSD[iStage] ~ dexp(1)
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
+      # Kontodimas VS Briere ?!
       parasEgg[iStage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMean[iStage],   bb=bbMean[iStage])   # The mean of the development kernel
       parasEgg[iStage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMeanSD[iStage], bb=bbMeanSD[iStage]) # The mean + 1 standard deviation for the development kernel
       ## Possibly add a parameter transformation step here ???
