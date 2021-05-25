@@ -6,10 +6,36 @@ library(tibble)
 library(dplyr)
 library(nimble)
 library(nimbleTempDev)
+library(imputeTS)
 
 baseDir = here()
 setwd(baseDir)
 load("data/data4nimble.Rdata")
+# import imputed values & replace NA
+imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missing values
+#ggplot_na_distribution(meteo$temperature) # some nice plot
+#ggplot_na_imputations(meteo$temperature, imp)
+meteo$temperature <- round(imp) # NA free meteo dataset
+
+# Construct stepForObs
+nplants <- length(psyllids)
+nobs <- 0
+for (ii in 1:nplants) {
+ nobs[ii] <- length(psyllids[[ii]][,1])
+  }
+max(nobs)
+
+date_bidon
+stepForObs <- rep(list(date_bidon),max(nobs))
+stepForObs <- data.frame(date_bidon,date_bidon)
+
+for (ii in 1:nplants) {
+  stepForObs[1:nobs[ii],ii] <-  psyllids[[ii]][,1]
+}
+
+class(stepForObs[1,1])
+colnames(stepForObs) <- paste0("plant", formatC(1:nplants, width = 2, flag = "0"))
+
 
 # BUGS code for nimble model
 # Just a very rough draft - there are many details which need adding or refining
@@ -35,12 +61,12 @@ psyllidCode <- nimbleCode ({
   #######################################################################
   for (tree in 1:nTree) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
-    for (tStep in 1:lTempVec) { # tStep = index for time-step
-      IPMouput[iDate_1B, 1:nStages] <- newSparseTravellingWaveFunction()
+    for (tStep in 1:lDates[tree]) { # tStep = index for time-step
+      IPMouput[tStep, 1:nStages] <- newSparseTravellingWaveFunction()
     }
     # Likelihood
-    for (iObs in 1:nObs[tree]) {
-      psyllids1B[iObs, 1:nStages] ~ dmultinom(prob = IPMouput[iDate_1B, 1:nStages], )
+    for (obs in 1:nObs[tree]) {
+      psyllids1B[obs, 1:nStages] ~ dmultinom(prob = IPMouput[stepForObs[obs,tree], 1:nStages], )
       ## 1B is a magic number - we need to generalise some how - possibly via a ragged array -
       ## the prob vector will come from the IPM
     }

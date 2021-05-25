@@ -23,9 +23,9 @@ lines(DataMeteo2005$temperature[1:110],
       type = "l",
       lwd=3)
 
-length(missingMeteo) == length(Meteo2005$temperature)
-which(is.na(Meteo2005$temperature))
-missingMeteo[which(is.na(Meteo2005$temperature))]
+length(missingMeteo) == length(DataMeteo2005$temperature)
+which(is.na(DataMeteo2005$temperature))
+missingMeteo[which(is.na(DataMeteo2005$temperature))]
 # Option 2: package "imputeTS"
 ggplot_na_distribution(DataMeteo2005$temperature)
 imp <- na_kalman(DataMeteo2005$temperature)
