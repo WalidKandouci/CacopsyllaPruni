@@ -28,19 +28,23 @@ V[1] <- 1
 M %*% V
 
 sparseTW1step = nimbleFunction(
-  run = function(popVec=double(1),
-                 kernMat=double(2)
+  run = function(vecOld=double(1),
+                 devMat=double(2)
                  ){
-    nstage = nimDim(kernMat)[1]
-    res = nimDim(kernMat)[2]
-    outVec = nimNumeric(length=res*nstage+1)
-    for (st in 1:nstage){
+    nstage = nimDim(devMat)[1]
+    res = nimDim(devMat)[2]
+    vecNew = nimNumeric(length=res*nstage+1)
+    for (stage in 1:nstage){
+      iWB = nimNumeric(length = res+1)
+      iWB[1:res] = (stage -1) * res + 1:res
+      iWB[res+1] = max(iWB[1:res]) + 1
       for (ii in 1:res) {
-        outVec[(st-1)*res+ii] = outVec[(st-1)*res+ii] + popVec[ii] * kernMat[st,]
+        vecNew[iWB[ii:res]] = vecNew[iWB[ii:res]] + vecOld[ii] * devMat[stage,1:(res-ii+1)]
+        vecNew[iWB[res+1]]  = vecNew[iWB[res+1]]  + vecOld[ii] * sum(devMat[stage,(res+1):(res-ii+2)])
       }
     }
-    
-    #devKernelEgg[iStage,iTemp,1:res] <- getMcol1(paras=parasEgg, res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
-    
+    vecNew[res+1] = vecNew[res+1] + vecOld[res+1]
+    returnType(double(1))
+    return(vecNew)
   }
 )
