@@ -7,6 +7,7 @@ library(dplyr)
 library(nimble)
 library(nimbleTempDev)
 library(imputeTS)
+library(lubridate)
 
 baseDir = here()
 setwd(baseDir)
@@ -18,23 +19,23 @@ imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missin
 meteo$temperature <- round(imp) # NA free meteo dataset
 
 # Construct stepForObs
-nplants <- length(psyllids)
-nobs <- 0
-for (ii in 1:nplants) {
- nobs[ii] <- length(psyllids[[ii]][,1])
-  }
-max(nobs)
-
-date_bidon
-stepForObs <- rep(list(date_bidon),max(nobs))
-stepForObs <- data.frame(date_bidon,date_bidon)
-
-for (ii in 1:nplants) {
-  stepForObs[1:nobs[ii],ii] <-  psyllids[[ii]][,1]
-}
-
-class(stepForObs[1,1])
-colnames(stepForObs) <- paste0("plant", formatC(1:nplants, width = 2, flag = "0"))
+#nplants <- length(psyllids)
+#nobs <- 0
+#for (ii in 1:nplants) {
+# nobs[ii] <- length(psyllids[[ii]][,1])
+#  }
+#max(nobs)
+#
+#date_bidon <- ymd_hms("19940205120000")
+#stepForObs <- rep(list(date_bidon),max(nobs))
+#stepForObs <- data.frame(date_bidon,date_bidon)
+#
+#for (ii in 1:nplants) {
+#  stepForObs[1:nobs[ii],ii] <-  psyllids[[ii]][,1]
+#}
+#
+#class(stepForObs[1,1])
+#colnames(stepForObs) <- paste0("plant", formatC(1:nplants, width = 2, flag = "0"))
 
 
 # BUGS code for nimble model
@@ -43,18 +44,21 @@ psyllidCode <- nimbleCode ({
   #############################################################
   ## Development kernel at each temperature & for each stage ##
   #############################################################
-  for (iStage in 1:nStages) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
+  for (stage in 1:nStages) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
     ## Priors
-    aaMean[iStage] ~ dexp(0.0001)
-    aaSD[iStage]   ~ dexp(0.0001)
-    bbMean[iStage] ~ dexp(2)
-    bbSD[iStage]   ~ dexp(2)
+    Tmin[stage] ~ dunif(-20,20)
+    Tmax[stage] ~ dunif(20 ,60)
+    aaMean[stage] ~ dexp(0.0001)
+    aaSD[stage]   ~ dexp(0.0001)
+    bbMean[stage] ~ dexp(2)
+    bbSD[stage]   ~ dexp(2)
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
-      # Kontodimas VS Briere ?!
-      paras[iStage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMean[iStage],   bb=bbMean[iStage])   # mean of the development kernel
-      paras[iStage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaSD[iStage], bb=bbSD[iStage]) # standard deviation for the development kernel
+      ## Briere
+      paras[stage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaMean[stage],   bb=bbMean[stage])   # mean of the development kernel
+      paras[stage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaSD[stage], bb=bbSD[stage]) # standard deviation for the development kernel
+      paras[stage,iTemp,3] <- 1
       ## Possibly add a parameter transformation step here ???
-      devKernel[iStage,iTemp,1:res] <- getKernel(paras=paras, res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
+      devKernel[stage,iTemp,1:res] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
   }
   #######################################################################
@@ -63,16 +67,16 @@ psyllidCode <- nimbleCode ({
   for (tree in 1:nTree) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
     for (tStep in 1:nTreeSteps[tree]) { # tStep = index for time-step
-      iTemp = iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1]
+      iTemp <- iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1]
       states[tree, tStep+1, 1:(nStages*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStages*res+1)],devKernel[iStage,iTemp,1:res])
     }
     # Likelihood
     for (obs in 1:nTreeDates[tree]) {
       for(stage in 1:nStages){
-        pStage[tree, obs, stage]  = sum(states[tree, iMeteoForObsMat[tree,obs], ((stage-1)*res+1):(stage*res)])
+        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs], ((stage-1)*res+1):(stage*res)])
       }
-      pStage[tree, obs, nStages1] = states[tree, iMeteoForObsMat[tree,obs], (stage*res+1)]
-      psyllids[tree, obs, 1:nStages1] ~ dmultinom(prob = pStage[tree, obs, 1:nStages1], size = sum(psyllids[tree, obs, 1:nStages1]))
+      pStage[tree, obs, nStages1] <- states[tree, iMeteoForObsMat[tree,obs], (stage*res+1)]
+      psyllids[tree, obs, 1:nStages1] ~ dmultinom(prob = pStage[tree, obs, 1:nStages1])#, size = sum(psyllids[tree, obs, 1:nStages1]))
       ## 1B is a magic number - we need to generalise some how - possibly via a ragged array -
       ## the prob vector will come from the IPM
     }
@@ -117,7 +121,7 @@ Const    = list(
   lMeteo     = nrow(meteo),
   meteoTemp  = meteo$temperature,
   iMeteoTemp = sapply(meteo$temperature, function(x) which(x == tempVec)),
-  iMeteoForObsMat = iMeteoForObsMat,
+  iMeteoForObsMat = iMeteoForObsMat
   
   # Index of nearest meteo observation to each psyllid observation
   # Check for iDate_1B
@@ -126,19 +130,23 @@ Const    = list(
 
 # Initial values for model parameters - tobe updated via MCMC
 Inits = list(
-  aaMean = rep(1, nStages),
-  bbMean = rep(1, nStages),
-  aaMeanSD = rep(1, nStages),
-  bbMeanSD = rep(1, nStages)
+  aaMean = rep(0.0001, Const$nStages),
+  bbMean = rep(2, Const$nStages),
+  aaMeanSD = rep(0.0001, Const$nStages),
+  bbMeanSD = rep(2, Const$nStages),
+  Tmin = rep(0,Const$nStages),
+  Tmax = rep(40,Const$nStages)
 )
 
 # Model data
+# psyllids[tree, obs, 1:nStages1] ~ dmultinom(prob = pStage[tree, obs, 1:nStages1])#, size = sum(psyllids[tree, obs, 1:nStages1]))
+psyllidsArray = array(NA,dim = c(nTrees, max(sapply(psyllids, "nrow")), Const$nStages1))
 Data = list(temperature = meteo$temperature,
-            psyllids1B  = (psyllids[[which(treeNames=="1B")]][-1, c("œuf","L1","L2","L3","L4","L5","imago")])
+            psyllids = psyllidsArray
             )
 
 # Build R version of nimble model
-rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data)
+rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits)#, data=Data)
 
 # Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
