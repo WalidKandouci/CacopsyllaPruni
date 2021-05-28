@@ -30,16 +30,17 @@ psyllidCode <- nimbleCode ({
   #############################################################
   for (stage in 1:nStagesDev) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
     ## Priors
-    Tmin[stage] ~ dunif(-20,20)
-    Tmax[stage] ~ dunif(20 ,60)
+    Tmin[stage]   ~ dunif(-20,20)
+    Tmax[stage]   ~ dunif(20 ,60)
     aaMean[stage] ~ dexp(0.0001)
     aaSD[stage]   ~ dexp(0.0001)
     bbMean[stage] ~ dexp(2)
     bbSD[stage]   ~ dexp(2)
+    ## Briere functional response curves
+    paras[stage,1:lTempVec,1] <- briere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaMean[stage], bb=bbMean[stage]) # Mean of the development kernel
+    paras[stage,1:lTempVec,2] <- briere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaSD[stage],   bb=bbSD[stage])   # Standard deviation of the development kernel
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
-      ## Briere
-      paras[stage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaMean[stage], bb=bbMean[stage]) # Mean of the development kernel
-      paras[stage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaSD[stage],   bb=bbSD[stage])   # Standard deviation of the development kernel
+      ## Survival
       paras[stage,iTemp,3] <- 1
       ## Possibly add a parameter transformation step here ???
       devKernel[stage,iTemp,1:res] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
