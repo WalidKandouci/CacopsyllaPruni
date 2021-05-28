@@ -1,6 +1,7 @@
 #####################################################################
 ## This script provides the definition of the multi-stageIPM model ##
 #####################################################################
+# rm(list=ls())
 library(here)
 library(tibble)
 library(dplyr)
@@ -12,6 +13,7 @@ library(lubridate)
 baseDir = here()
 setwd(baseDir)
 load("data/data4nimble.Rdata")
+source("src/functions.R")
 # import imputed values & replace NA
 imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missing values
 #ggplot_na_distribution(meteo$temperature) # some nice plot
@@ -44,7 +46,7 @@ psyllidCode <- nimbleCode ({
   #############################################################
   ## Development kernel at each temperature & for each stage ##
   #############################################################
-  for (stage in 1:nStages) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
+  for (stage in 1:nStagesDev) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
     ## Priors
     Tmin[stage] ~ dunif(-20,20)
     Tmax[stage] ~ dunif(20 ,60)
@@ -62,21 +64,21 @@ psyllidCode <- nimbleCode ({
     }
   }
   #######################################################################
-  ## Loop over trees 
+  ## Loop over trees
   #######################################################################
-  for (tree in 1:nTree) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
+  for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
-    for (tStep in 1:nTreeSteps[tree]) { # tStep = index for time-step
+    for (tStep in 1:nSteps[tree]) { # tStep = index for time-step
       iTemp <- iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1]
-      states[tree, tStep+1, 1:(nStages*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStages*res+1)],devKernel[iStage,iTemp,1:res])
+      states[tree, tStep+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStagesDev*res+1)],devKernel[iStage,iTemp,1:res])
     }
     # Likelihood
-    for (obs in 1:nTreeDates[tree]) {
-      for(stage in 1:nStages){
+    for (obs in 1:nObs[tree]) {
+      for(stage in 1:nStagesDev){
         pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs], ((stage-1)*res+1):(stage*res)])
       }
-      pStage[tree, obs, nStages1] <- states[tree, iMeteoForObsMat[tree,obs], (stage*res+1)]
-      psyllids[tree, obs, 1:nStages1] ~ dmultinom(prob = pStage[tree, obs, 1:nStages1])#, size = sum(psyllids[tree, obs, 1:nStages1]))
+      pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs], (stage*res+1)]
+      psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
       ## 1B is a magic number - we need to generalise some how - possibly via a ragged array -
       ## the prob vector will come from the IPM
     }
@@ -84,71 +86,66 @@ psyllidCode <- nimbleCode ({
 })
 ## TO DO: add ragged array to importData.R
 
-#########################
-## Create nimble model ##
-#########################
-# Constants
-tempMin  = min(meteo$temperature, na.rm = TRUE)
-tempMax  = max(meteo$temperature, na.rm = TRUE)
-tempVec  = tempMin:tempMax
-lTempVec = length(tempVec)
-
-iMeteoForObs = vector("list",length = length(psyllids))
-nTreeDates =  vector("numeric", length = length(psyllids))
-nTreeSteps = vector("numeric", length = length(psyllids))
-
+###############
+## Constants ##
+###############
+nObs         = vector("numeric", length = length(psyllids))
+nSteps       = vector("numeric", length = length(psyllids))
+iMeteoForObs = vector("list",    length = length(psyllids))
 for (tree in 1:length(iMeteoForObs)) {
   iMeteoForObs[[tree]] = sapply(psyllids[[tree]]$date, function(x) which(abs(meteo$date-x) == min(abs(meteo$date-x)))) %>% unlist()
-  nTreeDates[tree] = length(iMeteoForObs[[tree]])
-  nTreeSteps[tree] = length(min(iMeteoForObs[[tree]]):max(iMeteoForObs[[tree]]))
+  nObs[tree]           = length(iMeteoForObs[[tree]])
+  nSteps[tree]         = length(min(iMeteoForObs[[tree]]):max(iMeteoForObs[[tree]]))
 }
-
-iMeteoForObsMat = matrix(NA,nrow = nTrees, ncol = max(nTreeDates))
-
-for (tree in 1: nTrees){
-  iMeteoForObsMat[tree,1:nTreeDates[tree]] = iMeteoForObs[[tree]] 
+iMeteoForObsMat = matrix(NA,nrow = nTrees, ncol = max(nObs))
+for (tree in 1:nTrees){
+  iMeteoForObsMat[tree,1:nObs[tree]] = iMeteoForObs[[tree]]
 }
+stagesDev = c("œuf", "L1", "L2", "L3", "L4", "L5")
+stagesTot = c("œuf", "L1", "L2", "L3", "L4", "L5", "imago")
 
-Const    = list(
-  nTree      = length(psyllids),       ## Starting simple, just tree 1B to begin with
-  res        = 3,                      ## We can increase the resolution once some rough code is working
-  nStages    = 6,                      ## number of developing stages (without imago)
-  nStages1   = 7,                      ## with imago
-  tempMin    = tempMin,
-  tempMax    = tempMax,
-  tempVec    = tempVec,
-  lTempVec   = lTempVec,
-  lMeteo     = nrow(meteo),
-  meteoTemp  = meteo$temperature,
-  iMeteoTemp = sapply(meteo$temperature, function(x) which(x == tempVec)),
+Const             = list(
+  res             = (res        <- 3),                                 ## Resolution of within-stage development
+  nTrees          = (nTrees     <- length(psyllids)),
+  nStagesDev      = (nStagesDev <- length(stagesDev)), ## Number of developing stages (without imago)
+  nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
+  tempMin         = (tempMin    <- min(meteo$temperature, na.rm = TRUE)),
+  tempMax         = (tempMax    <- max(meteo$temperature, na.rm = TRUE)),
+  tempVec         = (tempVec    <- tempMin:tempMax),
+  lTempVec        = (lTempVec   <- length(tempVec)),
+  lMeteo          = (lMeteo     <- nrow(meteo)),
+  meteoTemp       = meteo$temperature,
+  iMeteoTemp      = sapply(meteo$temperature, function(x) which(x == tempVec)),
   iMeteoForObsMat = iMeteoForObsMat
-  
-  # Index of nearest meteo observation to each psyllid observation
-  # Check for iDate_1B
-  # data.frame(psyllid_date = psyllids[[which(treeNames=="1B")]]$date, nearest_meteo_date = meteo$date[Const$iDate_1B])
 )
 
-# Initial values for model parameters - tobe updated via MCMC
-Inits = list(
-  aaMean = rep(0.0001, Const$nStages),
-  bbMean = rep(2, Const$nStages),
-  aaMeanSD = rep(0.0001, Const$nStages),
-  bbMeanSD = rep(2, Const$nStages),
-  Tmin = rep(0,Const$nStages),
-  Tmax = rep(40,Const$nStages)
+##############################################
+## Initial (prior to MCMC) parameter values ##
+##############################################
+Inits      = list(
+  aaMean   = rep(0.0001, nStagesDev),
+  aaMeanSD = rep(0.0001, nStagesDev),
+  bbMean   = rep(2,      nStagesDev),
+  bbMeanSD = rep(2,      nStagesDev),
+  Tmin     = rep(0,      nStagesDev),
+  Tmax     = rep(40,     nStagesDev)
 )
 
 # Model data
-# psyllids[tree, obs, 1:nStages1] ~ dmultinom(prob = pStage[tree, obs, 1:nStages1])#, size = sum(psyllids[tree, obs, 1:nStages1]))
-psyllidsArray = array(NA,dim = c(nTrees, max(sapply(psyllids, "nrow")), Const$nStages1))
-Data = list(temperature = meteo$temperature,
-            psyllids = psyllidsArray
-            )
+# psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot])#, psyllidsTotal = sum(psyllids[tree, obs, 1:nStagesTot]))
+psyllidsArray = array(NA, dim = c(nTrees, max(nObs), nStagesTot))
+psyllidsTotal = matrix(NA, nrow=nTrees, ncol=max(nObs))
+for (tree in 1:nTrees) {
+  psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot] <- psyllids[[tree]] %>% select(stagesTot) %>% as.matrix()
+  psyllidsTotal[tree,1:nObs[tree]]                <- rowSums(psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot])
+}
+
+Data = list(temperature   = meteo$temperature,
+            psyllids      = psyllidsArray,
+            psyllidsTotal = psyllidsTotal)
 
 # Build R version of nimble model
-rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits)#, data=Data)
+rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data)
 
 # Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
-
-seq(0,40,0.01)
