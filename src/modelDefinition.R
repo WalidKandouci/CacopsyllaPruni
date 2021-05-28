@@ -20,28 +20,10 @@ imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missin
 #ggplot_na_imputations(meteo$temperature, imp)
 meteo$temperature <- round(imp) # NA free meteo dataset
 
-# Construct stepForObs
-#nplants <- length(psyllids)
-#nobs <- 0
-#for (ii in 1:nplants) {
-# nobs[ii] <- length(psyllids[[ii]][,1])
-#  }
-#max(nobs)
-#
-#date_bidon <- ymd_hms("19940205120000")
-#stepForObs <- rep(list(date_bidon),max(nobs))
-#stepForObs <- data.frame(date_bidon,date_bidon)
-#
-#for (ii in 1:nplants) {
-#  stepForObs[1:nobs[ii],ii] <-  psyllids[[ii]][,1]
-#}
-#
-#class(stepForObs[1,1])
-#colnames(stepForObs) <- paste0("plant", formatC(1:nplants, width = 2, flag = "0"))
 
-
-# BUGS code for nimble model
-# Just a very rough draft - there are many details which need adding or refining
+################################
+## BUGS code for nimble model ##
+################################
 psyllidCode <- nimbleCode ({
   #############################################################
   ## Development kernel at each temperature & for each stage ##
@@ -63,14 +45,13 @@ psyllidCode <- nimbleCode ({
       devKernel[stage,iTemp,1:res] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
   }
-  #######################################################################
-  ## Loop over trees
-  #######################################################################
+  #####################
+  ## Loop over trees ##
+  #####################
   for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
     for (tStep in 1:nSteps[tree]) { # tStep = index for time-step
-      iTemp <- iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1]
-      states[tree, tStep+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStagesDev*res+1)],devKernel[iStage,iTemp,1:res])
+      states[tree, tStep+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStagesDev*res+1)],devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1], 1:res])
     }
     # Likelihood
     for (obs in 1:nObs[tree]) {
@@ -122,13 +103,13 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-Inits      = list(
-  aaMean   = rep(0.0001, nStagesDev),
-  aaMeanSD = rep(0.0001, nStagesDev),
-  bbMean   = rep(2,      nStagesDev),
-  bbMeanSD = rep(2,      nStagesDev),
-  Tmin     = rep(0,      nStagesDev),
-  Tmax     = rep(40,     nStagesDev)
+Inits     = list(
+  aaMean = rep(0.0001, nStagesDev),
+  aaSD   = rep(0.0001, nStagesDev),
+  bbMean = rep(2,      nStagesDev),
+  bbSD   = rep(2,      nStagesDev),
+  Tmin   = rep(0,      nStagesDev),
+  Tmax   = rep(40,     nStagesDev)
 )
 
 # Model data
@@ -140,8 +121,7 @@ for (tree in 1:nTrees) {
   psyllidsTotal[tree,1:nObs[tree]]                <- rowSums(psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot])
 }
 
-Data = list(temperature   = meteo$temperature,
-            psyllids      = psyllidsArray,
+Data = list(psyllids      = psyllidsArray,
             psyllidsTotal = psyllidsTotal)
 
 # Build R version of nimble model
