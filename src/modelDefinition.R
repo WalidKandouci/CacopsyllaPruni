@@ -54,21 +54,25 @@ psyllidCode <- nimbleCode ({
       paras[iStage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMean[iStage],   bb=bbMean[iStage])   # mean of the development kernel
       paras[iStage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaSD[iStage], bb=bbSD[iStage]) # standard deviation for the development kernel
       ## Possibly add a parameter transformation step here ???
-      devKernel[iStage,iTemp,1:res] <- getMcol1(paras=paras, res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
+      devKernel[iStage,iTemp,1:res] <- getKernel(paras=paras, res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
   }
   #######################################################################
-  ## Loop over trees - this is tricky, so lets just start with tree 1B ##
+  ## Loop over trees 
   #######################################################################
   for (tree in 1:nTree) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
-    for (tStep in 1:lDates[tree]) { # tStep = index for time-step
-      iTemp = iMeteoTemp[]
+    for (tStep in 1:nTreeSteps[tree]) { # tStep = index for time-step
+      iTemp = iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1]
       states[tree, tStep+1, 1:(nStages*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStages*res+1)],devKernel[iStage,iTemp,1:res])
     }
     # Likelihood
-    for (obs in 1:nObs[tree]) {
-      psyllids1B[obs, 1:nStages] ~ dmultinom(prob = IPMouput[stepForObs[obs,tree], 1:nStages], )
+    for (obs in 1:nTreeDates[tree]) {
+      for(stage in 1:nStages){
+        pStage[tree, obs, stage]  = sum(states[tree, iMeteoForObsMat[tree,obs], ((stage-1)*res+1):(stage*res)])
+      }
+      pStage[tree, obs, nStages1] = states[tree, iMeteoForObsMat[tree,obs], (stage*res+1)]
+      psyllids[tree, obs, 1:nStages1] ~ dmultinom(prob = pStage[tree, obs, 1:nStages1], size = sum(psyllids[tree, obs, 1:nStages1]))
       ## 1B is a magic number - we need to generalise some how - possibly via a ragged array -
       ## the prob vector will come from the IPM
     }
@@ -85,16 +89,27 @@ tempMax  = max(meteo$temperature, na.rm = TRUE)
 tempVec  = tempMin:tempMax
 lTempVec = length(tempVec)
 
-iMeteoForTree = vector("list",length = length(psyllids))
+iMeteoForObs = vector("list",length = length(psyllids))
+nTreeDates =  vector("numeric", length = length(psyllids))
+nTreeSteps = vector("numeric", length = length(psyllids))
 
-for (tree in 1:length(iMeteoForTree)) {
-  iMeteoForTree[[tree]] = sapply(psyllids[[tree]]$date, function(x) which(abs(meteo$date-x) == min(abs(meteo$date-x)))) %>% unlist()
+for (tree in 1:length(iMeteoForObs)) {
+  iMeteoForObs[[tree]] = sapply(psyllids[[tree]]$date, function(x) which(abs(meteo$date-x) == min(abs(meteo$date-x)))) %>% unlist()
+  nTreeDates[tree] = length(iMeteoForObs[[tree]])
+  nTreeSteps[tree] = length(min(iMeteoForObs[[tree]]):max(iMeteoForObs[[tree]]))
 }
 
+iMeteoForObsMat = matrix(NA,nrow = nTrees, ncol = max(nTreeDates))
+
+for (tree in 1: nTrees){
+  iMeteoForObsMat[tree,1:nTreeDates[tree]] = iMeteoForObs[[tree]] 
+}
 
 Const    = list(
-  nTree      = 1,       ## Starting simple, just tree 1B to begin with
-  res        = 25,      ## We can increase the resolution once some rough code is working
+  nTree      = length(psyllids),       ## Starting simple, just tree 1B to begin with
+  res        = 3,                      ## We can increase the resolution once some rough code is working
+  nStages    = 6,                      ## number of developing stages (without imago)
+  nStages1   = 7,                      ## with imago
   tempMin    = tempMin,
   tempMax    = tempMax,
   tempVec    = tempVec,
@@ -102,6 +117,7 @@ Const    = list(
   lMeteo     = nrow(meteo),
   meteoTemp  = meteo$temperature,
   iMeteoTemp = sapply(meteo$temperature, function(x) which(x == tempVec)),
+  iMeteoForObsMat = iMeteoForObsMat,
   
   # Index of nearest meteo observation to each psyllid observation
   # Check for iDate_1B
