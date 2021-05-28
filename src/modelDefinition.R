@@ -9,6 +9,7 @@ library(nimble)
 library(nimbleTempDev)
 library(imputeTS)
 library(lubridate)
+library(coda)
 
 baseDir = here()
 setwd(baseDir)
@@ -138,6 +139,35 @@ detNodes   = cPsyllid$getNodeNames(determOnly = TRUE)                     # Dete
 #simulate(rPsyllid, detNodes)
 system.time(simulate(cPsyllid, detNodes))
 ##  user  system elapsed
-## 0.667   0.000   0.667 ## This is great!!! I feared it could be much much slower. We might even be able to return to one decimal place precision for temperatures!!
+## 0.667   0.000   0.667 ## This is great!!! I feared it could be much much slower.
 
-## Next steps... set up MCMC
+DEBUGGING TO DO HERE
+## NA
+calculate(cPsyllid)                   ## NA - why?
+calculate(cPsyllid, nodes=stochNodes) ## These work
+calculate(cPsyllid, nodes=detNodes)   ## These work
+cPsyllid$pStage                       ## These are all NAs
+cPsyllid$states                       ## These are all NAs
+
+###############################
+## Next steps... set up MCMC ##
+###############################
+mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
+mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
+mcmcConf$getMonitors()
+mcmcConf$getMonitors2()
+## Optionally ## mcmcConf$removeSamplers()
+## Optionally ## mcmcConf$addSampler( Fill this gap)
+
+## Build and compile the MCMC
+Rmcmc = buildMCMC(mcmcConf)
+Cmcmc = compileNimble(Rmcmc)
+
+##################
+## Run the MCMC ##
+##################
+nIter = 1000
+STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+
+samples <- coda::as.mcmc(as.matrix(Cmcmc$mvSamples))
+summary(samples)
