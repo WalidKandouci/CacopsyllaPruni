@@ -32,18 +32,19 @@ sparseTW1step = nimbleFunction(
                  devMat=double(2)
                  ){
     nstage = nimDim(devMat)[1]
-    res = nimDim(devMat)[2]
-    vecNew = nimNumeric(length=res*nstage+1)
+    res = nimDim(devMat)[2]-1
+    vecLength = res*nstage+1
+    vecNew = nimNumeric(length=vecLength)
     for (stage in 1:nstage){
-      iWB = nimNumeric(length = res+1)
+      iWB = nimNumeric(length = res+1) # iWB: index within-between stage
       iWB[1:res] = (stage -1) * res + 1:res
       iWB[res+1] = max(iWB[1:res]) + 1
       for (ii in 1:res) {
-        vecNew[iWB[ii:res]] = vecNew[iWB[ii:res]] + vecOld[ii] * devMat[stage,1:(res-ii+1)]
-        vecNew[iWB[res+1]]  = vecNew[iWB[res+1]]  + vecOld[ii] * sum(devMat[stage,(res+1):(res-ii+2)])
+        vecNew[iWB[ii:res]] = vecNew[iWB[ii:res]] + vecOld[iWB[ii]] * devMat[stage,1:(res-ii+1)]
+        vecNew[iWB[res+1]]  = vecNew[iWB[res+1]]  + vecOld[iWB[ii]] * sum(devMat[stage,(res+1):(res-ii+2)])
       }
     }
-    vecNew[res+1] = vecNew[res+1] + vecOld[res+1]
+    vecNew[vecLength] = vecNew[vecLength] + vecOld[vecLength]
     returnType(double(1))
     return(vecNew)
   }
