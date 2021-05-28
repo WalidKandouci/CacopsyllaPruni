@@ -141,13 +141,24 @@ system.time(simulate(cPsyllid, detNodes))
 ##  user  system elapsed
 ## 0.667   0.000   0.667 ## This is great!!! I feared it could be much much slower.
 
-DEBUGGING TO DO HERE
-## NA
+
+
+
+##########################
+## DEBUGGING TO DO HERE ##
+##########################
 calculate(cPsyllid)                   ## NA - why?
 calculate(cPsyllid, nodes=stochNodes) ## These work
 calculate(cPsyllid, nodes=detNodes)   ## These work
 cPsyllid$pStage                       ## These are all NAs
 cPsyllid$states                       ## These are all NAs
+cPsyllid$paras   ## Are these also NAs? Are their values too high for the devKernel ????
+
+
+
+
+
+
 
 ###############################
 ## Next steps... set up MCMC ##
