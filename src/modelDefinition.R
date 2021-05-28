@@ -43,7 +43,7 @@ psyllidCode <- nimbleCode ({
       ## Survival
       paras[stage,iTemp,3] <- 1
       ## Possibly add a parameter transformation step here ???
-      devKernel[stage,iTemp,1:res] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
+      devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
   }
   #####################
@@ -52,7 +52,7 @@ psyllidCode <- nimbleCode ({
   for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
     for (tStep in 1:nSteps[tree]) { # tStep = index for time-step
-      states[tree, tStep+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStagesDev*res+1)],devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1], 1:res])
+      states[tree, tStep+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStagesDev*res+1)],devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1], 1:(res+1)])
     }
     # Likelihood
     for (obs in 1:nObs[tree]) {
@@ -130,3 +130,14 @@ rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data)
 
 # Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
+
+dataNodes  = cPsyllid$getNodeNames(dataOnly = TRUE)                       # The data
+stochNodes = cPsyllid$getNodeNames(stochOnly = TRUE, includeData = FALSE) # The parameters
+detNodes   = cPsyllid$getNodeNames(determOnly = TRUE)                     # Deterministic nodes
+
+#simulate(rPsyllid, detNodes)
+system.time(simulate(cPsyllid, detNodes))
+##  user  system elapsed
+## 0.667   0.000   0.667 ## This is great!!! I feared it could be much much slower. We might even be able to return to one decimal place precision for temperatures!!
+
+## Next steps... set up MCMC
