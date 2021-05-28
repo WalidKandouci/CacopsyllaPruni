@@ -27,7 +27,7 @@ V <- M[,1] * 0
 V[1] <- 1
 M %*% V
 
-sparseTW1step = nimbleFunction(
+sparseTWstep = nimbleFunction(
   run = function(vecOld=double(1),
                  devMat=double(2)
                  ){

@@ -43,7 +43,7 @@ psyllidCode <- nimbleCode ({
   #############################################################
   ## Development kernel at each temperature & for each stage ##
   #############################################################
-  for (iStage in 1:nStages) { # iStag = index for {egg, L1, L2, L3, L4, L5, imago}
+  for (iStage in 1:nStages) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
     ## Priors
     aaMean[iStage] ~ dexp(0.0001)
     aaSD[iStage]   ~ dexp(0.0001)
@@ -51,10 +51,10 @@ psyllidCode <- nimbleCode ({
     bbSD[iStage]   ~ dexp(2)
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       # Kontodimas VS Briere ?!
-      parasEgg[iStage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMean[iStage],   bb=bbMean[iStage])   # mean of the development kernel
-      parasEgg[iStage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaSD[iStage], bb=bbSD[iStage]) # standard deviation for the development kernel
+      paras[iStage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaMean[iStage],   bb=bbMean[iStage])   # mean of the development kernel
+      paras[iStage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[iStage], Tmax=Tmax[iStage], aa=aaSD[iStage], bb=bbSD[iStage]) # standard deviation for the development kernel
       ## Possibly add a parameter transformation step here ???
-      devKernelEgg[iStage,iTemp,1:res] <- getMcol1(paras=parasEgg, res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
+      devKernel[iStage,iTemp,1:res] <- getMcol1(paras=paras, res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
   }
   #######################################################################
@@ -63,7 +63,8 @@ psyllidCode <- nimbleCode ({
   for (tree in 1:nTree) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
     for (tStep in 1:lDates[tree]) { # tStep = index for time-step
-      IPMouput[tStep, 1:nStages] <- newSparseTravellingWaveFunction()
+      iTemp = iMeteoTemp[]
+      states[tree, tStep+1, 1:(nStages*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStages*res+1)],devKernel[iStage,iTemp,1:res])
     }
     # Likelihood
     for (obs in 1:nObs[tree]) {
@@ -83,16 +84,26 @@ tempMin  = min(meteo$temperature, na.rm = TRUE)
 tempMax  = max(meteo$temperature, na.rm = TRUE)
 tempVec  = tempMin:tempMax
 lTempVec = length(tempVec)
+
+iMeteoForTree = vector("list",length = length(psyllids))
+
+for (tree in 1:length(iMeteoForTree)) {
+  iMeteoForTree[[tree]] = sapply(psyllids[[tree]]$date, function(x) which(abs(meteo$date-x) == min(abs(meteo$date-x)))) %>% unlist()
+}
+
+
 Const    = list(
-  nTree    = 1,       ## Starting simple, just tree 1B to begin with
-  res      = 25,      ## We can increase the resolution once some rough code is working
-  tempMin  = tempMin,
-  tempMax  = tempMax,
-  tempVec  = tempVec,
-  lTempVec = lTempVec,
-  lMeteo   = nrow(meteo),
+  nTree      = 1,       ## Starting simple, just tree 1B to begin with
+  res        = 25,      ## We can increase the resolution once some rough code is working
+  tempMin    = tempMin,
+  tempMax    = tempMax,
+  tempVec    = tempVec,
+  lTempVec   = lTempVec,
+  lMeteo     = nrow(meteo),
+  meteoTemp  = meteo$temperature,
+  iMeteoTemp = sapply(meteo$temperature, function(x) which(x == tempVec)),
+  
   # Index of nearest meteo observation to each psyllid observation
-  iDate_1B = sapply(psyllids[[which(treeNames=="1B")]]$date, function(x) which(abs(meteo$date-x) == min(abs(meteo$date-x)))) %>% unlist()
   # Check for iDate_1B
   # data.frame(psyllid_date = psyllids[[which(treeNames=="1B")]]$date, nearest_meteo_date = meteo$date[Const$iDate_1B])
 )
