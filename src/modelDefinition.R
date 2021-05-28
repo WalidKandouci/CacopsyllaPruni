@@ -38,8 +38,8 @@ psyllidCode <- nimbleCode ({
     bbSD[stage]   ~ dexp(2)
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Briere
-      paras[stage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaMean[stage],   bb=bbMean[stage])   # mean of the development kernel
-      paras[stage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaSD[stage], bb=bbSD[stage]) # standard deviation for the development kernel
+      paras[stage,iTemp,1] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaMean[stage], bb=bbMean[stage]) # Mean of the development kernel
+      paras[stage,iTemp,2] <- briere(t=tempVec[iTemp], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaSD[stage],   bb=bbSD[stage])   # Standard deviation of the development kernel
       paras[stage,iTemp,3] <- 1
       ## Possibly add a parameter transformation step here ???
       devKernel[stage,iTemp,1:res] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
@@ -58,7 +58,7 @@ psyllidCode <- nimbleCode ({
       for(stage in 1:nStagesDev){
         pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs], ((stage-1)*res+1):(stage*res)])
       }
-      pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs], (stage*res+1)]
+      pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs], (nStagesDev*res+1)]
       psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
       ## 1B is a magic number - we need to generalise some how - possibly via a ragged array -
       ## the prob vector will come from the IPM
@@ -117,7 +117,7 @@ Inits     = list(
 psyllidsArray = array(NA, dim = c(nTrees, max(nObs), nStagesTot))
 psyllidsTotal = matrix(NA, nrow=nTrees, ncol=max(nObs))
 for (tree in 1:nTrees) {
-  psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot] <- psyllids[[tree]] %>% select(stagesTot) %>% as.matrix()
+  psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot] <- psyllids[[tree]] %>% select(all_of(stagesTot)) %>% as.matrix()
   psyllidsTotal[tree,1:nObs[tree]]                <- rowSums(psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot])
 }
 
