@@ -96,7 +96,7 @@ stagesDev = c("egg", "L1", "L2", "L3", "L4", "L5")
 stagesTot = c("egg", "L1", "L2", "L3", "L4", "L5", "imago")
 
 Const             = list(
-  res             = (res        <- 3),                                 ## Resolution of within-stage development
+  res             = (res        <- 25),                                 ## Resolution of within-stage development
   nTrees          = (nTrees     <- length(psyllids)),
   nStagesDev      = (nStagesDev <- length(stagesDev)), ## Number of developing stages (without imago)
   nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
@@ -136,7 +136,7 @@ Data = list(psyllids      = psyllidsArray,
             psyllidsTotal = psyllidsTotal)
 
 # Build R version of nimble model
-rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data)
+rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data, calculate = FALSE)
 
 # Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
@@ -151,50 +151,27 @@ system.time(simulate(cPsyllid, detNodes))
 ## 0.667   0.000   0.667 ## This is great!!! I feared it could be much much slower.
 ## 1.71    0.03    1.73 for Walid
 
+#########################################
+## Test that the log-likelihood is finite
+#########################################
+calculate(cPsyllid)                   ## Inf...
 
 
-
-##########################
-##########################
-##########################
-##########################
-## DEBUGGING TO DO HERE ##
-##########################
-##########################
-##########################
-##########################
-calculate(cPsyllid)                   ## NA - why?
-calculate(cPsyllid, nodes=stochNodes) ## These work
-calculate(cPsyllid, nodes=detNodes)   ## These work
-cPsyllid$pStage                       ## tree, obs, stage
-cPsyllid$states                       ##
-cPsyllid$paras   ## Are these also NAs? Are their values too high for the devKernel ????
-cPsyllid$devKernel
-cPsyllid$states[1,2,]
-
-cPsyllid$pStage[1,,]
-cPsyllid$states[1,,]
-
-## states[tree, time, subStage]
-stateNodes = cPsyllid$getNodeNames()[grep("states", cPsyllid$getNodeNames())]
-cPsyllid
-simulate(cPsyllid, nodes=stateNodes)
-calculate(cPsyllid, nodes=stateNodes)
-getLogProb(cPsyllid, nodes=stateNodes)
-
-tree = 1
-time = 386
-undebug(sparseTWstep)
-(cPsyllid$states[tree, time+1, 1:(Const$nStagesDev*Const$res+1)] = sparseTWstep(cPsyllid$states[tree, time, 1:(Const$nStagesDev*Const$res+1)], cPsyllid$devKernel[1:Const$nStagesDev, Const$iMeteoTemp[Const$iMeteoForObsMat[tree,1] + time - 2], 1:(Const$res+1)])); time = time + 1
-
-cPsyllid$states[tree,1:400,] # <- rPsyllid$states[tree,1:400,]
-psyllids[[1]][,1]
+################################
+## Plot the the Briere curves ##
+################################
+par(mfrow=n2mfrow(Const$nStagesDev*2))
+for (stage in 1:Const$nStagesDev) {
+  curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], aa=cPsyllid$aaMean[stage], bb=cPsyllid$bbMean[stage]), 0, 50, ylab="Mean", main=paste("stage",stage))
+}
+for (stage in 1:Const$nStagesDev) {
+  curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], aa=cPsyllid$aaSD[stage],   bb=cPsyllid$bbSD[stage]), 0, 50, ylab="SD", main=paste("stage",stage))
+}
 
 
 ###############################
 ## Next steps... set up MCMC ##
 ###############################
-
 mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$getMonitors()
