@@ -1,6 +1,10 @@
 #####################################################################
 ## This script provides the definition of the multi-stageIPM model ##
 #####################################################################
+
+## Transforming integer to date of class POSIXct
+## as.POSIXct(as.integer(psyllids[[1]][1,1]), origin = "1970-01-01") == psyllids[[1]][1,1]
+
 # rm(list=ls())
 library(here)
 library(tibble)
@@ -14,8 +18,6 @@ library(coda)
 baseDir = here()
 setwd(baseDir)
 load("data/data4nimble.Rdata")
-colN <- c("date","tree","mature","egg","L1","L2","L3","L4","L5","imago")
-psyllids <- lapply(psyllids, setNames, colN)
 source("src/functions.R")
 
 #data4
@@ -57,17 +59,17 @@ psyllidCode <- nimbleCode ({
   #####################
   for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
-    states[tree, 1, 1] <- 1 
+    states[tree, 1, 1] <- 1
     for (substage in 2:(nStagesDev*res+1)){
       states[tree, 1, substage] <- 0
     }
-    for (time in 2:nSteps[tree]) { # time = index for time-step
-      states[tree, time+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, time, 1:(nStagesDev*res+1)],devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + time - 2], 1:(res+1)])
+    for (time in 1:nSteps[tree]) { # time = index for time-step
+      states[tree, time+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, time, 1:(nStagesDev*res+1)], devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + time - 1], 1:(res+1)])
     }
     # Likelihood
     for (obs in 1:nObs[tree]) {
       for(stage in 1:nStagesDev){
-        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs], ((stage-1)*res+1):(stage*res)])
+        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)]) ## BUG WITH INDEX FOR TIME
       }
       pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs], (nStagesDev*res+1)]
       psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
@@ -153,16 +155,40 @@ system.time(simulate(cPsyllid, detNodes))
 
 
 ##########################
+##########################
+##########################
+##########################
 ## DEBUGGING TO DO HERE ##
+##########################
+##########################
+##########################
 ##########################
 calculate(cPsyllid)                   ## NA - why?
 calculate(cPsyllid, nodes=stochNodes) ## These work
 calculate(cPsyllid, nodes=detNodes)   ## These work
-cPsyllid$pStage                       ## These are all NAs
-cPsyllid$states                       ## These are all NAs
+cPsyllid$pStage                       ## tree, obs, stage
+cPsyllid$states                       ##
 cPsyllid$paras   ## Are these also NAs? Are their values too high for the devKernel ????
 cPsyllid$devKernel
 cPsyllid$states[1,2,]
+
+cPsyllid$pStage[1,,]
+cPsyllid$states[1,,]
+
+## states[tree, time, subStage]
+stateNodes = cPsyllid$getNodeNames()[grep("states", cPsyllid$getNodeNames())]
+cPsyllid
+simulate(cPsyllid, nodes=stateNodes)
+calculate(cPsyllid, nodes=stateNodes)
+getLogProb(cPsyllid, nodes=stateNodes)
+
+tree = 1
+time = 386
+undebug(sparseTWstep)
+(cPsyllid$states[tree, time+1, 1:(Const$nStagesDev*Const$res+1)] = sparseTWstep(cPsyllid$states[tree, time, 1:(Const$nStagesDev*Const$res+1)], cPsyllid$devKernel[1:Const$nStagesDev, Const$iMeteoTemp[Const$iMeteoForObsMat[tree,1] + time - 2], 1:(Const$res+1)])); time = time + 1
+
+cPsyllid$states[tree,1:400,] # <- rPsyllid$states[tree,1:400,]
+psyllids[[1]][,1]
 
 
 ###############################
