@@ -57,8 +57,12 @@ psyllidCode <- nimbleCode ({
   #####################
   for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
     # IPM projections
-    for (tStep in 1:nSteps[tree]) { # tStep = index for time-step
-      states[tree, tStep+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, tStep, 1:(nStagesDev*res+1)],devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + tStep - 1], 1:(res+1)])
+    states[tree, 1, 1] <- 1 
+    for (substage in 2:(nStagesDev*res+1)){
+      states[tree, 1, substage] <- 0
+    }
+    for (time in 2:nSteps[tree]) { # time = index for time-step
+      states[tree, time+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, time, 1:(nStagesDev*res+1)],devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + time - 2], 1:(res+1)])
     }
     # Likelihood
     for (obs in 1:nObs[tree]) {
@@ -101,7 +105,8 @@ Const             = list(
   lMeteo          = (lMeteo     <- nrow(meteo)),
   meteoTemp       = meteo$temperature,
   iMeteoTemp      = sapply(meteo$temperature, function(x) which(x == tempVec)),
-  iMeteoForObsMat = iMeteoForObsMat
+  iMeteoForObsMat = iMeteoForObsMat,
+  nSteps          = nSteps
 )
 
 ##############################################
@@ -156,8 +161,8 @@ calculate(cPsyllid, nodes=detNodes)   ## These work
 cPsyllid$pStage                       ## These are all NAs
 cPsyllid$states                       ## These are all NAs
 cPsyllid$paras   ## Are these also NAs? Are their values too high for the devKernel ????
-
-
+cPsyllid$devKernel
+cPsyllid$states[1,2,]
 
 
 ###############################
