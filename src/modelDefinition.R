@@ -38,12 +38,12 @@ psyllidCode <- nimbleCode ({
   #############################################################
   for (stage in 1:nStagesDev) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
     ## Priors
-    Tmin[stage]   ~ dunif(-20,20)
-    Tmax[stage]   ~ dunif(20 ,60)
-    aaMean[stage] ~ dexp(0.0001)
-    aaSD[stage]   ~ dexp(0.0001)
-    bbMean[stage] ~ dexp(2)
-    bbSD[stage]   ~ dexp(2)
+    Tmin[stage]        ~ dunif(-20,20)
+    Tmax[stage]        ~ dunif( 20,60)
+    log(aaMean[stage]) ~ dLogExp(0.0001)
+    log(aaSD[stage])   ~ dLogExp(0.0001)
+    log(bbMean[stage]) ~ dLogExp(2)
+    log(bbSD[stage])   ~ dLogExp(2)
     ## Briere functional response curves
     paras[stage,1:lTempVec,1] <- briere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaMean[stage], bb=bbMean[stage]) # Mean of the development kernel
     paras[stage,1:lTempVec,2] <- briere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], aa=aaSD[stage],   bb=bbSD[stage])   # Standard deviation of the development kernel
@@ -96,7 +96,7 @@ stagesDev = c("egg", "L1", "L2", "L3", "L4", "L5")
 stagesTot = c("egg", "L1", "L2", "L3", "L4", "L5", "imago")
 
 Const             = list(
-  res             = (res        <- 25),                                 ## Resolution of within-stage development
+  res             = (res        <- 25),                ## Resolution of within-stage development
   nTrees          = (nTrees     <- length(psyllids)),
   nStagesDev      = (nStagesDev <- length(stagesDev)), ## Number of developing stages (without imago)
   nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
@@ -176,8 +176,8 @@ mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes) ## Sets a basic d
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$getMonitors()
 mcmcConf$getMonitors2()
-## Optionally ## mcmcConf$removeSamplers()
-## Optionally ## mcmcConf$addSampler( Fill this gap)
+mcmcConf$removeSamplers()
+mcmcConf$addSampler(target=stochNodes, type="RW_block")
 ## Build and compile the MCMC
 Rmcmc = buildMCMC(mcmcConf)
 Cmcmc = compileNimble(Rmcmc)
@@ -185,8 +185,10 @@ Cmcmc = compileNimble(Rmcmc)
 ##################
 ## Run the MCMC ##
 ##################
-nIter = 1000
+nIter = 1000 # 2.5 hours on laptop with univariate samplers
 STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
-samples <- coda::as.mcmc(as.matrix(Cmcmc$mvSamples))
+samples <- as.matrix(Cmcmc$mvSamples)
+samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
 summary(samples)
+plot(samples)
