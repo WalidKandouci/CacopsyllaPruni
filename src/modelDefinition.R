@@ -14,7 +14,12 @@ library(coda)
 baseDir = here()
 setwd(baseDir)
 load("data/data4nimble.Rdata")
+colN <- c("date","tree","mature","egg","L1","L2","L3","L4","L5","imago")
+psyllids <- lapply(psyllids, setNames, colN)
 source("src/functions.R")
+
+#data4
+
 # import imputed values & replace NA
 imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missing values
 #ggplot_na_distribution(meteo$temperature) # some nice plot
@@ -62,12 +67,9 @@ psyllidCode <- nimbleCode ({
       }
       pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs], (nStagesDev*res+1)]
       psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
-      ## 1B is a magic number - we need to generalise some how - possibly via a ragged array -
-      ## the prob vector will come from the IPM
     }
   }
 })
-## TO DO: add ragged array to importData.R
 
 ###############
 ## Constants ##
@@ -84,8 +86,8 @@ iMeteoForObsMat = matrix(NA,nrow = nTrees, ncol = max(nObs))
 for (tree in 1:nTrees){
   iMeteoForObsMat[tree,1:nObs[tree]] = iMeteoForObs[[tree]]
 }
-stagesDev = c("œuf", "L1", "L2", "L3", "L4", "L5")
-stagesTot = c("œuf", "L1", "L2", "L3", "L4", "L5", "imago")
+stagesDev = c("egg", "L1", "L2", "L3", "L4", "L5")
+stagesTot = c("egg", "L1", "L2", "L3", "L4", "L5", "imago")
 
 Const             = list(
   res             = (res        <- 3),                                 ## Resolution of within-stage development
@@ -140,6 +142,7 @@ detNodes   = cPsyllid$getNodeNames(determOnly = TRUE)                     # Dete
 system.time(simulate(cPsyllid, detNodes))
 ##  user  system elapsed
 ## 0.667   0.000   0.667 ## This is great!!! I feared it could be much much slower.
+## 1.71    0.03    1.73 for Walid
 
 
 
@@ -157,19 +160,16 @@ cPsyllid$paras   ## Are these also NAs? Are their values too high for the devKer
 
 
 
-
-
-
 ###############################
 ## Next steps... set up MCMC ##
 ###############################
+
 mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$getMonitors()
 mcmcConf$getMonitors2()
 ## Optionally ## mcmcConf$removeSamplers()
 ## Optionally ## mcmcConf$addSampler( Fill this gap)
-
 ## Build and compile the MCMC
 Rmcmc = buildMCMC(mcmcConf)
 Cmcmc = compileNimble(Rmcmc)
