@@ -71,7 +71,7 @@ psyllidCode <- nimbleCode ({
       for(stage in 1:nStagesDev){
         pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)]) ## BUG WITH INDEX FOR TIME
       }
-      pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs], (nStagesDev*res+1)]
+      pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, (nStagesDev*res+1)]
       psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
     }
   }
