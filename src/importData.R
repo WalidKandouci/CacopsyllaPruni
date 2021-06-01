@@ -1,6 +1,7 @@
 #####################################################################
 ## This script is used to import and format psyllid and meteo data ##
 #####################################################################
+## source(here("src/importData.R"))
 library(here)
 library(readxl)
 library(tibble)
@@ -14,7 +15,7 @@ xlxsFiles = dataFiles[grep("xlsx", dataFiles)]
 xlxsFiles = xlxsFiles[grep("Data_2005_Comptage", xlxsFiles)]
 treeNames = sub(",",".",sub(".xlsx","",sub("Data_2005_Comptage_", "", xlxsFiles)))
 nTrees    = length(treeNames)
-stages    = c("mature", "œuf", "L1",  "L2", "L3", "L4", "L5", "imago")
+stages    = c("mature", "egg", "L1",  "L2", "L3", "L4", "L5", "imago")
 
 ###########################
 ## Import data to a list ##
@@ -24,6 +25,7 @@ for (ii in 1:nTrees) {
   rawData       = readxl::read_excel(paste0("data/",xlxsFiles[ii]), col_types=c("guess",rep("numeric",15),"guess"))
   rawData$date  = as.POSIXct(rawData$date, format="%Y-%m-%d %H:%M:%S")
   rawData$stage = factor(rawData$stage, levels=c("mature","œuf","L1","L2","L3","L4","L5","imago"))
+  levels(rawData$stage) = stages
   rawDataList[[ii]] = cbind(tree = treeNames[ii], rawData)
   rm(rawData)
 }
