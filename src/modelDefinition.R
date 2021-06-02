@@ -2,7 +2,7 @@
 ## This script provides the definition of the multi-stageIPM model ##
 #####################################################################
 
-## source(here("src/modelDefinition.R"))
+## source(here::here("src/modelDefinition.R"))
 
 ## Transforming integer to date of class POSIXct
 ## as.POSIXct(as.integer(psyllids[[1]][1,1]), origin = "1970-01-01") == psyllids[[1]][1,1]
@@ -206,6 +206,7 @@ write.table(samples, file=here(paste0("MCMC/",fileName, ".txt")), row.names = FA
 ## samples=read.table("MCMC/mcmcJun2.txt", header = TRUE)
 
 if (FALSE) {
+  ## These attempts to print to file are not working well... probably either too many samples, too many variables, or both.
   (fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),"_crosscorr.pdf"))
   pdf(file=fileName, width=25, height=25)
   crosscorr.plot(samples)
