@@ -2,6 +2,8 @@
 ## This script provides the definition of the multi-stageIPM model ##
 #####################################################################
 
+## source(here("src/modelDefinition.R"))
+
 ## Transforming integer to date of class POSIXct
 ## as.POSIXct(as.integer(psyllids[[1]][1,1]), origin = "1970-01-01") == psyllids[[1]][1,1]
 
@@ -171,7 +173,8 @@ for (stage in 1:Const$nStagesDev) {
 ###############################
 ## Next steps... set up MCMC ##
 ###############################
-mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
+thin = 10
+mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes, thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$getMonitors()
 mcmcConf$getMonitors2()
@@ -192,17 +195,24 @@ Cmcmc = compileNimble(Rmcmc)
 nIter = 100000 # 9 hours on workstation
 STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
-1000/(STime/60)*(9*60)
-
-(STime/60)/60
-
+#####################################
+## Extract samples and save tofile ##
+#####################################
 samples <- as.matrix(Cmcmc$mvSamples)
 samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
-summary(samples)
-plot(samples)
 
-fileName = paste0("mcmc", (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""))
+(fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),".txt"))
 write.table(samples, file=here(paste0("MCMC/",fileName, ".txt")), row.names = FALSE)
+## samples=read.table("MCMC/mcmcJun2.txt", header = TRUE)
 
-crosscorr(samples)
-crosscorr.plot(samples)
+if (FALSE) {
+  (fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),"_crosscorr.pdf"))
+  pdf(file=fileName, width=25, height=25)
+  crosscorr.plot(samples)
+  dev.off()
+
+  (fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),"_codaPlot.pdf"))
+  pdf(file=fileName)
+  plot(samples)
+  dev.off()
+}
