@@ -35,6 +35,7 @@ meteo$temperature <- round(imp) # NA free meteo dataset
 ## BUGS code for nimble model ##
 ################################
 psyllidCode <- nimbleCode ({
+  tempVec[1:lTempVec] <- tempMin + 0:(lTempVec-1)
   #############################################################
   ## Development kernel at each temperature & for each stage ##
   #############################################################
@@ -44,8 +45,8 @@ psyllidCode <- nimbleCode ({
     Tmax[stage]        ~ dnorm(40,20)
     logit(amplitudeMean[stage]) ~ dLogitBeta(1,1)
     logit(amplitudeSD[stage])   ~ dLogitBeta(1,1)
-    logit(shapeMean[stage]) ~ dLogitBeta(1,1)
-    logit(shapeSD[stage])   ~ dLogitBeta(1,1)
+    logit(shapeMean[stage])     ~ dLogitBeta(1,1)
+    logit(shapeSD[stage])       ~ dLogitBeta(1,1)
     ## Briere functional response curves
     paras[stage,1:lTempVec,1] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
     paras[stage,1:lTempVec,2] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
@@ -104,8 +105,7 @@ Const             = list(
   nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
   tempMin         = (tempMin    <- min(meteo$temperature, na.rm = TRUE)),
   tempMax         = (tempMax    <- max(meteo$temperature, na.rm = TRUE)),
-  tempVec         = (tempVec    <- tempMin:tempMax),
-  lTempVec        = (lTempVec   <- length(tempVec)),
+  lTempVec        = (lTempVec   <- length((tempVec <- tempMin:tempMax))),
   lMeteo          = (lMeteo     <- nrow(meteo)),
   meteoTemp       = meteo$temperature,
   iMeteoTemp      = sapply(meteo$temperature, function(x) which(x == tempVec)),
@@ -117,8 +117,8 @@ Const             = list(
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
 Inits     = list(
-  logit_amplitudeMean = logit(rep(0.01, nStagesDev)),
-  logit_amplitudeSD   = logit(rep(0.01, nStagesDev)),
+  logit_amplitudeMean = logit(rep(0.1, nStagesDev)),
+  logit_amplitudeSD   = logit(rep(0.1, nStagesDev)),
   logit_shapeMean = logit(rep(0.8, nStagesDev)),
   logit_shapeSD   = logit(rep(0.8, nStagesDev)),
   Tmin   = rep(0,  nStagesDev),
@@ -135,13 +135,17 @@ for (tree in 1:nTrees) {
 }
 
 Data = list(psyllids      = psyllidsArray,
-            psyllidsTotal = psyllidsTotal)
+            psyllidsTotal = psyllidsTotal
+            )
 
 # Build R version of nimble model
 rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data, calculate = FALSE)
+#rPsyllid$tempVec
+#simulate(rPsyllid, "tempVec")
 
 # Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
+
 
 dataNodes  = cPsyllid$getNodeNames(dataOnly   = TRUE)                       # The data
 stochNodes = cPsyllid$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # The parameters
@@ -156,19 +160,54 @@ system.time(simulate(cPsyllid, detNodes))
 #########################################
 ## Test that the log-likelihood is finite
 #########################################
+cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
 calculate(cPsyllid)                   ## Inf...
+cPsyllid$tempVec
+
+
+cPsyllid$devKernel[1,1:31,]
+
+cPsyllid$Tmin
+cPsyllid$Tmax
+
+cPsyllid$simulate("paras")
+stage=1
+## cStBriere = compileNimble(stBriere)
+## cStBriere(t=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeMean[stage], amplitude=cPsyllid$amplitudeMean[stage]) # Mean of the development kernel
+stBriere(t=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeMean[stage], amplitude=cPsyllid$amplitudeMean[stage]) # Mean of the development kernel
+stBriere(t=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeSD[stage], amplitude=cPsyllid$amplitudeSD[stage]) # Mean of the development kernel
+cPsyllid$devKernel[stage,,1:(res+1)]
+cPsyllid$paras[1,1:lTempVec,]
+
+
+
+cPsyllid$logit_amplitudeMean = cPsyllid$logit_amplitudeMean * 0
+cPsyllid$logit_amplitudeSD = cPsyllid$logit_amplitudeSD * 0
+cPsyllid$amplitudeMean
+cPsyllid$amplitudeSD
+cPsyllid$shapeMean
+cPsyllid$shapeSD
+
+rPsyllid$tempVec
+
+cPsyllid$paras
+
+cPsyllid$pStage
+
+
 
 ################################
 ## Plot the the Briere curves ##
 ################################
-par(mfrow=n2mfrow(Const$nStagesDev*2))
-for (stage in 1:Const$nStagesDev) {
-  curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]), 0, 50, ylab="Mean", main=paste("stage",stage))
+if (FALSE) {
+  par(mfrow=n2mfrow(Const$nStagesDev*2))
+  for (stage in 1:Const$nStagesDev) {
+    curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]), 0, 50, ylab="Mean", main=paste("stage",stage))
+  }
+  for (stage in 1:Const$nStagesDev) {
+    curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeSD[stage],   shape=cPsyllid$shapeSD[stage]), 0, 50, ylab="SD", main=paste("stage",stage))
+  }
 }
-for (stage in 1:Const$nStagesDev) {
-  curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeSD[stage],   shape=cPsyllid$shapeSD[stage]), 0, 50, ylab="SD", main=paste("stage",stage))
-}
-
 
 ###############################
 ## Next steps... set up MCMC ##
