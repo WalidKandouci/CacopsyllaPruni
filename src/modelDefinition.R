@@ -77,6 +77,8 @@ psyllidCode <- nimbleCode ({
       psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
     }
   }
+  ## A proxy node for returning logProbs
+  sumLogProb ~ dnorm(0,1) ## dnorm(0,1) will not be used.  It just establishes sumLogProb as a stochastic node.
 })
 
 ###############
@@ -119,10 +121,11 @@ Const             = list(
 Inits     = list(
   logit_amplitudeMean = logit(rep(0.1, nStagesDev)),
   logit_amplitudeSD   = logit(rep(0.1, nStagesDev)),
-  logit_shapeMean = logit(rep(0.8, nStagesDev)),
-  logit_shapeSD   = logit(rep(0.8, nStagesDev)),
-  Tmin   = rep(0,  nStagesDev),
-  Tmax   = rep(40, nStagesDev)
+  logit_shapeMean     = logit(rep(0.8, nStagesDev)),
+  logit_shapeSD       = logit(rep(0.8, nStagesDev)),
+  Tmin                = rep(0,  nStagesDev),
+  Tmax                = rep(40, nStagesDev),
+  sumLogProb          = 0
 )
 
 # Model data
@@ -147,9 +150,11 @@ rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data, calculat
 cPsyllid = compileNimble(rPsyllid)
 
 
-dataNodes  = cPsyllid$getNodeNames(dataOnly   = TRUE)                       # The data
-stochNodes = cPsyllid$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # The parameters
-detNodes   = cPsyllid$getNodeNames(determOnly = TRUE)                     # Deterministic nodes
+dataNodes    = cPsyllid$getNodeNames(dataOnly   = TRUE)                      # The data
+stochNodes   = cPsyllid$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # The parameters
+detNodes     = cPsyllid$getNodeNames(determOnly = TRUE)                      # Deterministic nodes
+monitorNodes = cPsyllid$getParents("paras", immediateOnly = TRUE)
+
 
 #simulate(rPsyllid, detNodes)
 system.time(simulate(cPsyllid, detNodes))
@@ -161,46 +166,10 @@ system.time(simulate(cPsyllid, detNodes))
 ## Test that the log-likelihood is finite
 #########################################
 # cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
-calculate(cPsyllid)                   ## Inf...
+calculate(cPsyllid)
 
-simulate(cPsyllid, "tempVec")
-calculate(cPsyllid, "tempVec")
-calculate(cPsyllid, stochNodes)
-calculate(cPsyllid, "paras")
-cPsyllid$paras
-cPsyllid$tempVec
-
-
-cPsyllid$devKernel[1,1:31,]
-
-cPsyllid$Tmin
-cPsyllid$Tmax
-
-cPsyllid$simulate("paras")
-stage=1
-## cStBriere = compileNimble(stBriere)
-## cStBriere(t=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeMean[stage], amplitude=cPsyllid$amplitudeMean[stage]) # Mean of the development kernel
-stBriere(t=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeMean[stage], amplitude=cPsyllid$amplitudeMean[stage]) # Mean of the development kernel
-stBriere(t=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeSD[stage], amplitude=cPsyllid$amplitudeSD[stage]) # Mean of the development kernel
-cPsyllid$devKernel[stage,,1:(res+1)]
-cPsyllid$paras[1,1:lTempVec,]
-
-
-
-cPsyllid$logit_amplitudeMean = cPsyllid$logit_amplitudeMean * 0
-cPsyllid$logit_amplitudeSD = cPsyllid$logit_amplitudeSD * 0
-cPsyllid$amplitudeMean
-cPsyllid$amplitudeSD
-cPsyllid$shapeMean
-cPsyllid$shapeSD
-
-rPsyllid$tempVec
-
-cPsyllid$paras
-
-cPsyllid$pStage
-
-
+if (!is.finite(calculate(cPsyllid)))
+  stop("Non-finite likelihood detected.")
 
 ################################
 ## Plot the the Briere curves ##
@@ -222,10 +191,14 @@ thin = 10
 mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes, thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$getMonitors()
-mcmcConf$getMonitors2()
 mcmcConf$removeSamplers()
+configureStoreLogProb(mcmcConf, cPsyllid, 'sumLogProb') ## For tracking
 mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.01))
+mcmcConf$resetMonitors()
+mcmcConf$addMonitors(monitorNodes)
+mcmcConf$addMonitors2('sumLogProb')
 mcmcConf
+
 ## Build and compile the MCMC
 Rmcmc = buildMCMC(mcmcConf)
 Cmcmc = compileNimble(Rmcmc)
