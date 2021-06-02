@@ -115,10 +115,10 @@ Const             = list(
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
 Inits     = list(
-  aaMean = rep(0.0001, nStagesDev),
-  aaSD   = rep(0.0001, nStagesDev),
-  bbMean = rep(2,      nStagesDev),
-  bbSD   = rep(2,      nStagesDev),
+  log_aaMean = log(rep(0.0001, nStagesDev)),
+  log_aaSD   = log(rep(0.0001, nStagesDev)),
+  log_bbMean = log(rep(2,      nStagesDev)),
+  log_bbSD   = log(rep(2,      nStagesDev)),
   Tmin   = rep(0,      nStagesDev),
   Tmax   = rep(40,     nStagesDev)
 )
@@ -156,7 +156,6 @@ system.time(simulate(cPsyllid, detNodes))
 #########################################
 calculate(cPsyllid)                   ## Inf...
 
-
 ################################
 ## Plot the the Briere curves ##
 ################################
@@ -177,18 +176,30 @@ mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong 
 mcmcConf$getMonitors()
 mcmcConf$getMonitors2()
 mcmcConf$removeSamplers()
-mcmcConf$addSampler(target=stochNodes, type="RW_block")
+mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.01))
+mcmcConf
 ## Build and compile the MCMC
 Rmcmc = buildMCMC(mcmcConf)
 Cmcmc = compileNimble(Rmcmc)
 
+# 1000 iterations in 2.5 hours on laptop with univariate samplers
+# 1000 iterations in 5.4 minutes on workstation with 1 block sampler
+
+
 ##################
 ## Run the MCMC ##
 ##################
-nIter = 1000 # 2.5 hours on laptop with univariate samplers
+nIter = 100000 # 9 hours on workstation
 STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+
+1000/(STime/60)*(9*60)
+
+(STime/60)/60
 
 samples <- as.matrix(Cmcmc$mvSamples)
 samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
 summary(samples)
 plot(samples)
+
+fileName = paste0("mcmc", (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""))
+write.table(samples, file=here(paste0("MCMC/",fileName, ".txt")), row.names = FALSE)
