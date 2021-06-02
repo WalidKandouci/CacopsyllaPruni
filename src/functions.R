@@ -49,3 +49,16 @@ sparseTWstep = nimbleFunction(
     return(vecNew)
   }
 )
+
+
+
+
+## shape     = 0.5
+## amplitude = 0.01
+## bb        = shape / (2*(1-shape))
+## Tmin      = -5
+## Tmax      = 30
+## Tmode     = shape * (Tmax-Tmin) + Tmin
+## curve(amplitude*briere((x-Tmin)/(Tmax-Tmin), Tmin=0, Tmax=1, amplitude, bb=bb)/briere((Tmode-Tmin)/(Tmax-Tmin), Tmin=0, Tmax=1, amplitude, bb=bb), Tmin, Tmax, n=10001, ylab="Dev")
+## abline(v=Tmode)
+## abline(h=0)

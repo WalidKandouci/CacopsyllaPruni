@@ -38,8 +38,8 @@ psyllidCode <- nimbleCode ({
   #############################################################
   for (stage in 1:nStagesDev) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
     ## Priors
-    Tmin[stage]        ~ dunif(-20,20)
-    Tmax[stage]        ~ dunif( 20,60)
+    Tmin[stage]        ~ dnorm( 0,20)
+    Tmax[stage]        ~ dnorm(40,20)
     log(aaMean[stage]) ~ dLogExp(0.0001)
     log(aaSD[stage])   ~ dLogExp(0.0001)
     log(bbMean[stage]) ~ dLogExp(2)
@@ -203,3 +203,6 @@ plot(samples)
 
 fileName = paste0("mcmc", (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""))
 write.table(samples, file=here(paste0("MCMC/",fileName, ".txt")), row.names = FALSE)
+
+crosscorr(samples)
+crosscorr.plot(samples)
