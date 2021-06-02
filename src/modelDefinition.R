@@ -7,7 +7,7 @@
 
 # rm(list=ls())
 library(here)
-library(tishapele)
+library(tibble)
 library(dplyr)
 library(nimble)
 library(nimbleTempDev)
@@ -141,8 +141,8 @@ rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data, calculat
 # Compile model to C++
 cPsyllid = compileNimble(rPsyllid)
 
-dataNodes  = cPsyllid$getNodeNames(dataOnly = TRUE)                       # The data
-stochNodes = cPsyllid$getNodeNames(stochOnly = TRUE, includeData = FALSE) # The parameters
+dataNodes  = cPsyllid$getNodeNames(dataOnly   = TRUE)                       # The data
+stochNodes = cPsyllid$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # The parameters
 detNodes   = cPsyllid$getNodeNames(determOnly = TRUE)                     # Deterministic nodes
 
 #simulate(rPsyllid, detNodes)
