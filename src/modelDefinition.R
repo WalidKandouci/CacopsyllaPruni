@@ -35,7 +35,6 @@ meteo$temperature <- round(imp) # NA free meteo dataset
 ## BUGS code for nimble model ##
 ################################
 psyllidCode <- nimbleCode ({
-  tempVec[1:lTempVec] <- tempMin + 0:(lTempVec-1)
   #############################################################
   ## Development kernel at each temperature & for each stage ##
   #############################################################
@@ -105,6 +104,7 @@ Const             = list(
   nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
   tempMin         = (tempMin    <- min(meteo$temperature, na.rm = TRUE)),
   tempMax         = (tempMax    <- max(meteo$temperature, na.rm = TRUE)),
+  tempVec         = (tempVec    <- tempMin:tempMax),
   lTempVec        = (lTempVec   <- length((tempVec <- tempMin:tempMax))),
   lMeteo          = (lMeteo     <- nrow(meteo)),
   meteoTemp       = meteo$temperature,
@@ -160,8 +160,14 @@ system.time(simulate(cPsyllid, detNodes))
 #########################################
 ## Test that the log-likelihood is finite
 #########################################
-cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
+# cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
 calculate(cPsyllid)                   ## Inf...
+
+simulate(cPsyllid, "tempVec")
+calculate(cPsyllid, "tempVec")
+calculate(cPsyllid, stochNodes)
+calculate(cPsyllid, "paras")
+cPsyllid$paras
 cPsyllid$tempVec
 
 
