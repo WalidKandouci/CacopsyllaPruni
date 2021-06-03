@@ -118,25 +118,23 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-Inits     = list(
-  ## logit_amplitudeMean = logit(rep(0.08, nStagesDev)),
-  ## logit_amplitudeSD   = logit(rep(0.1, nStagesDev)),
-  ## logit_shapeMean     = logit(rep(0.8, nStagesDev)),
-  ## logit_shapeSD       = logit(rep(0.8, nStagesDev)),
-  ## Tmin                = rep(0,  nStagesDev),
-  ## Tmax                = rep(40, nStagesDev),
-  ## Values found via optim
-  Tmin                = c(-0.840082505,1.890155937,0.964868738,-1.208933150,-1.894897093,1.074007783),
-  Tmax                = c(44.145668347,42.015194827,41.383560659,42.012669226,41.961821721,41.866991422),
-  logit_amplitudeMean = c(-2.538223744,-2.346815670,-2.148938115,-2.274139735,-2.109692812,-3.886697986),
-  logit_shapeMean     = c(1.243808310,1.306726311,2.392200114,3.278973805,5.199365553,4.513076810),
-  logit_amplitudeSD   = c(-0.379437151,0.835470536,1.410043012,2.437749389,2.159332219,-0.006822573),
-  logit_shapeSD       = c(1.085060138,8.606434971,-1.124921897,0.517501802,0.302038131,7.553068749),
+previousMCMCfile = here("MCMC/Jun3_18:33.txt")
+previous = read.table(previousMCMCfile, header=TRUE) %>% tail(1)
+
+Inits = list(
+  ## Last values retrned from a previous run
+  Tmin                = previous %>% select(grep("Tmin",          colnames(previous))) %>% as.numeric(),
+  Tmax                = previous %>% select(grep("Tmax",          colnames(previous))) %>% as.numeric(),
+  logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% logit() %>% as.numeric(),
+  logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% logit() %>% as.numeric(),
+  logit_amplitudeSD   = previous %>% select(grep("amplitudeSD",   colnames(previous))) %>% logit() %>% as.numeric(),
+  logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric(),
   sumLogProb          = 0
 )
 
-# Model data
-# psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot])#, psyllidsTotal = sum(psyllids[tree, obs, 1:nStagesTot]))
+################
+## Model data ##
+################
 psyllidsArray = array(NA, dim = c(nTrees, max(nObs), nStagesTot))
 psyllidsTotal = matrix(NA, nrow=nTrees, ncol=max(nObs))
 for (tree in 1:nTrees) {
@@ -145,8 +143,7 @@ for (tree in 1:nTrees) {
 }
 
 Data = list(psyllids      = psyllidsArray,
-            psyllidsTotal = psyllidsTotal
-            )
+            psyllidsTotal = psyllidsTotal)
 
 #####################################
 ## Build R version of nimble model ##
@@ -243,18 +240,31 @@ Cmcmc = compileNimble(Rmcmc)
 ## Run the MCMC ##
 ##################
 nIter =  1E4 # 1E5 ~ 9.7 hours on workstation
-STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+STime <- run.time(Cmcmc$run(nIter, reset=TRUE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+
+#############################
+## Extract log-likelihoods ##
+#############################
+STime / 60 / 60
+logliks <- as.matrix(Cmcmc$mvSamples2)
+logliks <- coda::as.mcmc(logliks[!(is.na(logliks[,1])),])
+plot(logliks)
+
 
 #####################################
 ## Extract samples and save tofile ##
 #####################################
 samples <- as.matrix(Cmcmc$mvSamples)
 samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
+summary(samples)
+plot(samples)
 
-## summary(samples)
-## plot(samples)
+## crosscorr.plot(samples)
+## sort(apply(crosscorr(samples) - diag(1, 36), 1, function(x) max(abs(x))), dec=TRUE)
 
-(fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),".txt"))
+(fileName = paste0("MCMC/",
+                   (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste0(collapse=""), "_",
+                   (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5), ".txt"))
 write.table(as.matrix(samples), file=fileName, row.names = FALSE)
 ## samples=read.table("MCMC/mcmcJun2.txt", header = TRUE)
 
