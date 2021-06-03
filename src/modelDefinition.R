@@ -119,12 +119,19 @@ Const             = list(
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
 Inits     = list(
-  logit_amplitudeMean = logit(rep(0.08, nStagesDev)),
-  logit_amplitudeSD   = logit(rep(0.1, nStagesDev)),
-  logit_shapeMean     = logit(rep(0.8, nStagesDev)),
-  logit_shapeSD       = logit(rep(0.8, nStagesDev)),
-  Tmin                = rep(0,  nStagesDev),
-  Tmax                = rep(40, nStagesDev),
+  ## logit_amplitudeMean = logit(rep(0.08, nStagesDev)),
+  ## logit_amplitudeSD   = logit(rep(0.1, nStagesDev)),
+  ## logit_shapeMean     = logit(rep(0.8, nStagesDev)),
+  ## logit_shapeSD       = logit(rep(0.8, nStagesDev)),
+  ## Tmin                = rep(0,  nStagesDev),
+  ## Tmax                = rep(40, nStagesDev),
+  ## Values found via optim
+  Tmin                = c(-0.840082505,1.890155937,0.964868738,-1.208933150,-1.894897093,1.074007783),
+  Tmax                = c(44.145668347,42.015194827,41.383560659,42.012669226,41.961821721,41.866991422),
+  logit_amplitudeMean = c(-2.538223744,-2.346815670,-2.148938115,-2.274139735,-2.109692812,-3.886697986),
+  logit_shapeMean     = c(1.243808310,1.306726311,2.392200114,3.278973805,5.199365553,4.513076810),
+  logit_amplitudeSD   = c(-0.379437151,0.835470536,1.410043012,2.437749389,2.159332219,-0.006822573),
+  logit_shapeSD       = c(1.085060138,8.606434971,-1.124921897,0.517501802,0.302038131,7.553068749),
   sumLogProb          = 0
 )
 
@@ -158,6 +165,10 @@ dataNodes    = cPsyllid$getNodeNames(dataOnly   = TRUE)                      # T
 stochNodes   = cPsyllid$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # The parameters
 detNodes     = cPsyllid$getNodeNames(determOnly = TRUE)                      # Deterministic nodes
 monitorNodes = cPsyllid$getParents("paras", immediateOnly = TRUE)
+## Filter out sumLogProb
+dataNodes  = dataNodes[which(dataNodes!="sumLogProb")]
+stochNodes = stochNodes[which(stochNodes!="sumLogProb")]
+detNodes   = detNodes[which(detNodes!="sumLogProb")]
 
 ####################################
 ## Initialise deterministic nodes ##
@@ -171,7 +182,8 @@ system.time(simulate(cPsyllid, detNodes))
 ## Test that the log-likelihood is finite
 #########################################
 # cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
-calculate(cPsyllid)
+calculate(cPsyllid, c(stochNodes,dataNodes))
+calculate(cPsyllid, "sumLogProb")
 if (!is.finite(calculate(cPsyllid)))
   stop("Non-finite likelihood detected.")
 
@@ -179,34 +191,18 @@ if (!is.finite(calculate(cPsyllid)))
 ##############################################
 ## Identify better initial parameter values ##
 ##############################################
-ilogit(cPsyllid$logit_amplitudeMean)
-cPsyllid$logit_amplitudeMean = rep(logit(0.07), 6); calculate(cPsyllid)
-cPsyllid$logit_amplitudeSD   = rep(logit(0.35), 6); calculate(cPsyllid)
-cPsyllid$logit_shapeMean     = rep(logit(0.8), 6);  calculate(cPsyllid)
-cPsyllid$logit_shapeSD       = rep(logit(0.79), 6); calculate(cPsyllid)
-cPsyllid$Tmin                = rep(-0.3, 6);        calculate(cPsyllid)
-cPsyllid$Tmax                = rep(40, 6);          calculate(cPsyllid)
-
-pVec = c(cPsyllid$Tmin, cPsyllid$Tmax, cPsyllid$logit_amplitudeMean, cPsyllid$logit_shapeMean, cPsyllid$logit_amplitudeSD, cPsyllid$logit_shapeSD)
-optim(pVec, function(pVec){
-  cPsyllid$Tmin                = pVec[1:6]
-  cPsyllid$Tmax                = pVec[6 + 1:6]
-  cPsyllid$logit_amplitudeMean = pVec[12 + 1:6]
-  cPsyllid$logit_shapeMean     = pVec[18 + 1:6]
-  cPsyllid$logit_amplitudeSD   = pVec[24 + 1:6]
-  cPsyllid$logit_shapeSD       = pVec[30 + 1:6]
-  calculate(cPsyllid)
-}, control = list(fnscale=-1), hessian = FALSE)
-
-
-
-
-
-
-
-
-
-
+if (FALSE) { # This step takes about 1/2 hour, the output has been pasted into the definition of 'Inits' above
+  pVec = c(cPsyllid$Tmin, cPsyllid$Tmax, cPsyllid$logit_amplitudeMean, cPsyllid$logit_shapeMean, cPsyllid$logit_amplitudeSD, cPsyllid$logit_shapeSD)
+  opt = optim(pVec, function(pVec){
+    cPsyllid$Tmin                = pVec[1:6]
+    cPsyllid$Tmax                = pVec[6 + 1:6]
+    cPsyllid$logit_amplitudeMean = pVec[12 + 1:6]
+    cPsyllid$logit_shapeMean     = pVec[18 + 1:6]
+    cPsyllid$logit_amplitudeSD   = pVec[24 + 1:6]
+    cPsyllid$logit_shapeSD       = pVec[30 + 1:6]
+    calculate(cPsyllid, c(stochNodes,dataNodes))
+  }, control = list(fnscale=-1), hessian = FALSE)
+}
 
 
 
@@ -227,15 +223,12 @@ if (FALSE) {
 ## Next steps... set up MCMC ##
 ###############################
 thin = 10
-mcmcConf <- configureMCMC(model=rPsyllid, monitors=stochNodes, thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
-mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
+mcmcConf <- configureMCMC(model=rPsyllid, monitors=monitorNodes, monitors2 = "sumLogProb", thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
 mcmcConf$getMonitors()
+mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$removeSamplers()
-configureStoreLogProb(mcmcConf, cPsyllid, 'sumLogProb') ## For tracking
-mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.01))
-mcmcConf$resetMonitors()
-mcmcConf$addMonitors(monitorNodes)
-mcmcConf$addMonitors2('sumLogProb')
+configureStoreLogProb(mcmcConf, cPsyllid, 'sumLogProb') ## For tracking posterior log-likelihood
+mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.1))
 mcmcConf
 
 ## Build and compile the MCMC
@@ -249,7 +242,7 @@ Cmcmc = compileNimble(Rmcmc)
 ##################
 ## Run the MCMC ##
 ##################
-nIter = 100000 # 9 hours on workstation
+nIter =  1E4 # 1E5 ~ 9.7 hours on workstation
 STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
 #####################################
@@ -257,6 +250,9 @@ STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterat
 #####################################
 samples <- as.matrix(Cmcmc$mvSamples)
 samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
+
+## summary(samples)
+## plot(samples)
 
 (fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),".txt"))
 write.table(as.matrix(samples), file=fileName, row.names = FALSE)
