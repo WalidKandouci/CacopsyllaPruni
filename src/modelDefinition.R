@@ -119,7 +119,7 @@ Const             = list(
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
 Inits     = list(
-  logit_amplitudeMean = logit(rep(0.1, nStagesDev)),
+  logit_amplitudeMean = logit(rep(0.08, nStagesDev)),
   logit_amplitudeSD   = logit(rep(0.1, nStagesDev)),
   logit_shapeMean     = logit(rep(0.8, nStagesDev)),
   logit_shapeSD       = logit(rep(0.8, nStagesDev)),
@@ -141,22 +141,27 @@ Data = list(psyllids      = psyllidsArray,
             psyllidsTotal = psyllidsTotal
             )
 
-# Build R version of nimble model
+#####################################
+## Build R version of nimble model ##
+#####################################
 rPsyllid = nimbleModel(psyllidCode, const=Const, init=Inits, data=Data, calculate = FALSE)
-#rPsyllid$tempVec
-#simulate(rPsyllid, "tempVec")
 
-# Compile model to C++
+##########################
+## Compile model to C++ ##
+##########################
 cPsyllid = compileNimble(rPsyllid)
 
-
+################
+## Node lists ##
+################
 dataNodes    = cPsyllid$getNodeNames(dataOnly   = TRUE)                      # The data
 stochNodes   = cPsyllid$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # The parameters
 detNodes     = cPsyllid$getNodeNames(determOnly = TRUE)                      # Deterministic nodes
 monitorNodes = cPsyllid$getParents("paras", immediateOnly = TRUE)
 
-
-#simulate(rPsyllid, detNodes)
+####################################
+## Initialise deterministic nodes ##
+####################################
 system.time(simulate(cPsyllid, detNodes))
 ##  user  system elapsed
 ## 0.667   0.000   0.667 ## This is great!!! I feared it could be much much slower.
@@ -167,9 +172,43 @@ system.time(simulate(cPsyllid, detNodes))
 #########################################
 # cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
 calculate(cPsyllid)
-
 if (!is.finite(calculate(cPsyllid)))
   stop("Non-finite likelihood detected.")
+
+
+##############################################
+## Identify better initial parameter values ##
+##############################################
+ilogit(cPsyllid$logit_amplitudeMean)
+cPsyllid$logit_amplitudeMean = rep(logit(0.07), 6); calculate(cPsyllid)
+cPsyllid$logit_amplitudeSD   = rep(logit(0.35), 6); calculate(cPsyllid)
+cPsyllid$logit_shapeMean     = rep(logit(0.8), 6);  calculate(cPsyllid)
+cPsyllid$logit_shapeSD       = rep(logit(0.79), 6); calculate(cPsyllid)
+cPsyllid$Tmin                = rep(-0.3, 6);        calculate(cPsyllid)
+cPsyllid$Tmax                = rep(40, 6);          calculate(cPsyllid)
+
+pVec = c(cPsyllid$Tmin, cPsyllid$Tmax, cPsyllid$logit_amplitudeMean, cPsyllid$logit_shapeMean, cPsyllid$logit_amplitudeSD, cPsyllid$logit_shapeSD)
+optim(pVec, function(pVec){
+  cPsyllid$Tmin                = pVec[1:6]
+  cPsyllid$Tmax                = pVec[6 + 1:6]
+  cPsyllid$logit_amplitudeMean = pVec[12 + 1:6]
+  cPsyllid$logit_shapeMean     = pVec[18 + 1:6]
+  cPsyllid$logit_amplitudeSD   = pVec[24 + 1:6]
+  cPsyllid$logit_shapeSD       = pVec[30 + 1:6]
+  calculate(cPsyllid)
+}, control = list(fnscale=-1), hessian = FALSE)
+
+
+
+
+
+
+
+
+
+
+
+
 
 ################################
 ## Plot the the Briere curves ##
@@ -220,7 +259,7 @@ samples <- as.matrix(Cmcmc$mvSamples)
 samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
 
 (fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),".txt"))
-write.table(samples, file=here(paste0("MCMC/",fileName, ".txt")), row.names = FALSE)
+write.table(as.matrix(samples), file=fileName, row.names = FALSE)
 ## samples=read.table("MCMC/mcmcJun2.txt", header = TRUE)
 
 if (FALSE) {
