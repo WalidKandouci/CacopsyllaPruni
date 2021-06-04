@@ -240,7 +240,7 @@ Cmcmc = compileNimble(Rmcmc)
 ## Run the MCMC ##
 ##################
 nIter =  1E5 # 1E4
-STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+STime <- run.time(Cmcmc$run(nIter, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
 #############################
 ## Extract log-likelihoods ##
@@ -264,7 +264,7 @@ plot(samples)
 
 (fileName = paste0("MCMC/",
                    (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste0(collapse=""), "_",
-                   (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5), ".txt"))
+                   (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""), ".txt"))
 write.table(as.matrix(samples), file=fileName, row.names = FALSE)
 ## samples=read.table("MCMC/mcmcJun2.txt", header = TRUE)
 
