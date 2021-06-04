@@ -118,7 +118,7 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-previousMCMCfile = here("MCMC/Jun3_18:33.txt")
+previousMCMCfile = here("MCMC/Jun4_10:41.txt")
 previous = read.table(previousMCMCfile, header=TRUE) %>% tail(1)
 
 Inits = list(
@@ -239,8 +239,8 @@ Cmcmc = compileNimble(Rmcmc)
 ##################
 ## Run the MCMC ##
 ##################
-nIter =  1E4 # 1E5 ~ 9.7 hours on workstation
-STime <- run.time(Cmcmc$run(nIter, reset=TRUE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+nIter =  1E5 # 1E4
+STime <- run.time(Cmcmc$run(nIter, reset=FALSE))  ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
 #############################
 ## Extract log-likelihoods ##
@@ -267,6 +267,11 @@ plot(samples)
                    (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5), ".txt"))
 write.table(as.matrix(samples), file=fileName, row.names = FALSE)
 ## samples=read.table("MCMC/mcmcJun2.txt", header = TRUE)
+
+
+write.table(as.matrix(logliks), row.names = FALSE, file=sub("\\.","_loglik.",fileName))
+
+
 
 if (FALSE) {
   ## These attempts to print to file are not working well... probably either too many samples, too many variables, or both.
