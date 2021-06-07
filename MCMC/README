@@ -1,0 +1,7 @@
+Notes for trajectories Jun7_0812...
+
+1) Output from four rounds of 1E5 iterations, first set with thin=10, then sets 2-3 with thin=100
+
+2) Serveral rounds of 1E5 iterations were run prior to these for convergence
+
+3) Trajectories show how the adaptive sampler 'wakes up' - i.e. variance in samples suddenly jumps up.

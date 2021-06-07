@@ -118,7 +118,7 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-previousMCMCfile = here("MCMC/Jun4_10:41.txt")
+previousMCMCfile = here("MCMC/Jun5_2311.txt")
 previous = read.table(previousMCMCfile, header=TRUE) %>% tail(1)
 
 Inits = list(
@@ -219,7 +219,7 @@ if (FALSE) {
 ###############################
 ## Next steps... set up MCMC ##
 ###############################
-thin = 10
+thin = 100
 mcmcConf <- configureMCMC(model=rPsyllid, monitors=monitorNodes, monitors2 = "sumLogProb", thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
 mcmcConf$getMonitors()
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
@@ -239,8 +239,8 @@ Cmcmc = compileNimble(Rmcmc)
 ##################
 ## Run the MCMC ##
 ##################
-nIter =  1E5 # 1E4
-STime <- run.time(Cmcmc$run(nIter, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+nIter =  3E5 # 1E4
+STime <- run.time(Cmcmc$run(nIter, thin = 100, thin2=100, reset=FALSE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
 #############################
 ## Extract log-likelihoods ##
@@ -259,6 +259,9 @@ samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
 summary(samples)
 plot(samples)
 
+sort(effectiveSize(samples))
+
+## crosscorr(samples)
 ## crosscorr.plot(samples)
 ## sort(apply(crosscorr(samples) - diag(1, 36), 1, function(x) max(abs(x))), dec=TRUE)
 
@@ -271,17 +274,17 @@ write.table(as.matrix(samples), file=fileName, row.names = FALSE)
 
 write.table(as.matrix(logliks), row.names = FALSE, file=sub("\\.","_loglik.",fileName))
 
-
-
-if (FALSE) {
-  ## These attempts to print to file are not working well... probably either too many samples, too many variables, or both.
-  (fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),"_crosscorr.pdf"))
-  pdf(file=fileName, width=25, height=25)
+if (TRUE) {
+  ## Cross correlation plot
+  pdf(file = sub("txt","pdf", sub("\\.","_crosscor.",fileName)), width=20, height=20)
   crosscorr.plot(samples)
   dev.off()
-
-  (fileName = paste0("MCMC/","mcmc",(date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste(collapse=""),"_codaPlot.pdf"))
-  pdf(file=fileName)
+  ## Trajectories plot
+  pdf(file = sub("txt","pdf", sub("\\.","_trajectories.",fileName)))
   plot(samples)
+  dev.off()
+  ## Log posterior likelihood trajectories
+  pdf(file = sub("txt","pdf", sub("\\.","_trajecory-logliks.",fileName)))
+  plot(logliks)
   dev.off()
 }
