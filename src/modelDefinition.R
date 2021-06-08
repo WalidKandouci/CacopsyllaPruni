@@ -24,6 +24,8 @@ source("src/functions.R")
 
 #data4
 
+SDmodel = 1 # 2, 3, 4, 5
+
 # import imputed values & replace NA
 imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missing values
 #ggplot_na_distribution(meteo$temperature) # some nice plot
@@ -43,12 +45,15 @@ psyllidCode <- nimbleCode ({
     Tmin[stage]        ~ dnorm( 0,20)
     Tmax[stage]        ~ dnorm(40,20)
     logit(amplitudeMean[stage]) ~ dLogitBeta(1,1)
-    logit(amplitudeSD[stage])   ~ dLogitBeta(1,1)
     logit(shapeMean[stage])     ~ dLogitBeta(1,1)
-    logit(shapeSD[stage])       ~ dLogitBeta(1,1)
     ## Briere functional response curves
     paras[stage,1:lTempVec,1] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
-    paras[stage,1:lTempVec,2] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
+    if (SDmodel == 1) {
+      logit(shapeSD[stage])       ~ dLogitBeta(1,1)
+      logit(amplitudeSD[stage])   ~ dLogitBeta(1,1)
+      paras[stage,1:lTempVec,2] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
+    }
+    ## etc
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Survival
       paras[stage,iTemp,3] <- 1
@@ -100,6 +105,7 @@ stagesDev = c("egg", "L1", "L2", "L3", "L4", "L5")
 stagesTot = c("egg", "L1", "L2", "L3", "L4", "L5", "imago")
 
 Const             = list(
+  SDmodel         = SDmodel,
   res             = (res        <- 25),                ## Resolution of within-stage development
   nTrees          = (nTrees     <- length(psyllids)),
   nStagesDev      = (nStagesDev <- length(stagesDev)), ## Number of developing stages (without imago)
@@ -239,8 +245,8 @@ Cmcmc = compileNimble(Rmcmc)
 ##################
 ## Run the MCMC ##
 ##################
-nIter =  3E5 # 1E4
-STime <- run.time(Cmcmc$run(nIter, thin = 100, thin2=100, reset=FALSE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+nIter =  2E5 # 1E4
+STime <- run.time(Cmcmc$run(nIter, thin = 100, thin2=100, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
 #############################
 ## Extract log-likelihoods ##
@@ -288,3 +294,7 @@ if (TRUE) {
   plot(logliks)
   dev.off()
 }
+
+
+## class(samples[-c(1:13000),])
+## crosscorr.plot(as.mcmc(samples[-c(1:13000),]))
