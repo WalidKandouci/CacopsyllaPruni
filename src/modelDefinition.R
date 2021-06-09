@@ -76,7 +76,7 @@ psyllidCode <- nimbleCode ({
     # Likelihood
     for (obs in 1:nObs[tree]) {
       for(stage in 1:nStagesDev){
-        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)]) ## BUG WITH INDEX FOR TIME
+        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)])
       }
       pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, (nStagesDev*res+1)]
       psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
@@ -124,7 +124,7 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-previousMCMCfile = here("MCMC/Jun5_2311.txt")
+previousMCMCfile = here("MCMC/Jun8_1403.txt")
 previous = read.table(previousMCMCfile, header=TRUE) %>% tail(1)
 
 Inits = list(
@@ -233,7 +233,10 @@ mcmcConf$removeSamplers()
 configureStoreLogProb(mcmcConf, cPsyllid, 'sumLogProb') ## For tracking posterior log-likelihood
 mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.1))
 mcmcConf
-
+##  APT
+aptR <- buildAPT(mcmcConf, Temps = 1:4, ULT = 1000, print= TRUE) # only 4 temperatures to avoid memory issues
+aptR$run(niter=15000)
+aptSamples <- tail(as.matrix(aptR$mvSamples), 10000)
 ## Build and compile the MCMC
 Rmcmc = buildMCMC(mcmcConf)
 Cmcmc = compileNimble(Rmcmc)
@@ -255,7 +258,6 @@ STime / 60 / 60
 logliks <- as.matrix(Cmcmc$mvSamples2)
 logliks <- coda::as.mcmc(logliks[!(is.na(logliks[,1])),])
 plot(logliks)
-
 
 #####################################
 ## Extract samples and save tofile ##
@@ -294,7 +296,53 @@ if (TRUE) {
   plot(logliks)
   dev.off()
 }
-
-
 ## class(samples[-c(1:13000),])
 ## crosscorr.plot(as.mcmc(samples[-c(1:13000),]))
+
+## APT results
+summary(aptSamples)
+plot(aptSamples,xlab="",ylab="", type="l")
+points(aptSamples, col="red", pch="19", cex=0.1)
+legend("topleft", legend = c("jumps","samples"),col=c("black","red"), pch=c("_","x"),bg="white")
+
+
+## res x time iter
+resVec <- seq(25,100,25) # with niter fix
+dataResTime <- cbind(resVec,rep(0,length(resVec)))
+colnames(dataResTime) <- c("res","time")
+for (ii in 1: length(resVec)) {
+  rPsyllidRes = nimbleModel(psyllidCode, const=list(
+    SDmodel         = SDmodel,
+    res             = (res        <- resVec[ii]),                ## Resolution of within-stage development
+    nTrees          = (nTrees     <- length(psyllids)),
+    nStagesDev      = (nStagesDev <- length(stagesDev)), ## Number of developing stages (without imago)
+    nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
+    tempMin         = (tempMin    <- min(meteo$temperature, na.rm = TRUE)),
+    tempMax         = (tempMax    <- max(meteo$temperature, na.rm = TRUE)),
+    tempVec         = (tempVec    <- tempMin:tempMax),
+    lTempVec        = (lTempVec   <- length((tempVec <- tempMin:tempMax))),
+    lMeteo          = (lMeteo     <- nrow(meteo)),
+    meteoTemp       = meteo$temperature,
+    iMeteoTemp      = sapply(meteo$temperature, function(x) which(x == tempVec)),
+    iMeteoForObsMat = iMeteoForObsMat,
+    nSteps          = nSteps
+  ), init=Inits, data=Data, calculate = FALSE)
+  cPsyllidRes = compileNimble(rPsyllidRes)
+  ################
+  ## Node lists ##
+  ################
+  dataNodesRes    = cPsyllidRes$getNodeNames(dataOnly   = TRUE)                      # The data
+  stochNodesRes   = cPsyllidRes$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # The parameters
+  detNodesRes     = cPsyllidRes$getNodeNames(determOnly = TRUE)                      # Deterministic nodes
+  monitorNodesRes = cPsyllidRes$getParents("paras", immediateOnly = TRUE)
+  ## Filter out sumLogProb
+  dataNodesRes  = dataNodesRes[which(dataNodesRes!="sumLogProb")]
+  stochNodesRes = stochNodesRes[which(stochNodesRes!="sumLogProb")]
+  detNodesRes   = detNodesRes[which(detNodesRes!="sumLogProb")]
+  ####################################
+  ## Initialise deterministic nodes ##
+  ####################################
+  dataResTime[ii,2] <- system.time(simulate(cPsyllidRes, detNodesRes))[3] # [3] is for the total time to calculate (User + CPU)
+}
+
+plot(dataResTime[,1], dataResTime[,2])
