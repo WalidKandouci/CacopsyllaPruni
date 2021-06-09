@@ -76,7 +76,7 @@ psyllidCode <- nimbleCode ({
     # Likelihood
     for (obs in 1:nObs[tree]) {
       for(stage in 1:nStagesDev){
-        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)]) ## BUG WITH INDEX FOR TIME
+        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)])
       }
       pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, (nStagesDev*res+1)]
       psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
@@ -234,7 +234,7 @@ configureStoreLogProb(mcmcConf, cPsyllid, 'sumLogProb') ## For tracking posterio
 mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.1))
 mcmcConf
 ##  APT
-aptR <- buildAPT(mcmcConf, Temps = 1:4, ULT = 40, print= TRUE) # only 4 temperatures to avoid memory issues
+aptR <- buildAPT(mcmcConf, Temps = 1:4, ULT = 1000, print= TRUE) # only 4 temperatures to avoid memory issues
 aptR$run(niter=15000)
 aptSamples <- tail(as.matrix(aptR$mvSamples), 10000)
 ## Build and compile the MCMC
