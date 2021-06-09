@@ -124,7 +124,7 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-previousMCMCfile = here("MCMC/Jun5_2311.txt")
+previousMCMCfile = here("MCMC/Jun8_1403.txt")
 previous = read.table(previousMCMCfile, header=TRUE) %>% tail(1)
 
 Inits = list(
