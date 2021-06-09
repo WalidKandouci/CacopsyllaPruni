@@ -342,7 +342,7 @@ for (ii in 1: length(resVec)) {
   ####################################
   ## Initialise deterministic nodes ##
   ####################################
-  dataResTime[ii,2] <- system.time(simulate(cPsyllidRes, detNodesRes))
+  dataResTime[ii,2] <- system.time(simulate(cPsyllidRes, detNodesRes))[3] # [3] is for the total time to calculate (User + CPU)
 }
 
 plot(dataResTime[,1], dataResTime[,2])
