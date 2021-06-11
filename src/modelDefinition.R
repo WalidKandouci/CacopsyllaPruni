@@ -12,6 +12,7 @@ library(here)
 library(tibble)
 library(dplyr)
 library(nimble)
+library(nimbleAPT)
 library(nimbleTempDev)
 library(imputeTS)
 library(lubridate)
@@ -83,7 +84,7 @@ psyllidCode <- nimbleCode ({
     }
   }
   ## A proxy node for returning logProbs
-  sumLogProb ~ dnorm(0,1) ## dnorm(0,1) will not be used.  It just establishes sumLogProb as a stochastic node.
+  ### sumLogProb ~ dnorm(0,1) ## dnorm(0,1) will not be used.  It just establishes sumLogProb as a stochastic node.
 })
 
 ###############
@@ -124,8 +125,13 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-previousMCMCfile = here("MCMC/Jun8_1403.txt")
-previous = read.table(previousMCMCfile, header=TRUE) %>% tail(1)
+previousMCMCfile = here("MCMC/Jun9_1008.txt")
+previous = read.table(previousMCMCfile, header=TRUE)
+##
+previousSampScale = previous
+previousSampScale[,-grep("T", colnames(previous))] = logit(previousSampScale[,-grep("T", colnames(previous))])
+##
+previous = previous %>% tail(1)
 
 Inits = list(
   ## Last values retrned from a previous run
@@ -134,9 +140,10 @@ Inits = list(
   logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% logit() %>% as.numeric(),
   logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% logit() %>% as.numeric(),
   logit_amplitudeSD   = previous %>% select(grep("amplitudeSD",   colnames(previous))) %>% logit() %>% as.numeric(),
-  logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric(),
-  sumLogProb          = 0
+  logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric()
+  ### sumLogProb          = 0
 )
+
 
 ################
 ## Model data ##
@@ -148,8 +155,7 @@ for (tree in 1:nTrees) {
   psyllidsTotal[tree,1:nObs[tree]]                <- rowSums(psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot])
 }
 
-Data = list(psyllids      = psyllidsArray,
-            psyllidsTotal = psyllidsTotal)
+Data = list(psyllids = psyllidsArray, psyllidsTotal = psyllidsTotal)
 
 #####################################
 ## Build R version of nimble model ##
@@ -169,9 +175,9 @@ stochNodes   = cPsyllid$getNodeNames(stochOnly  = TRUE, includeData = FALSE) # T
 detNodes     = cPsyllid$getNodeNames(determOnly = TRUE)                      # Deterministic nodes
 monitorNodes = cPsyllid$getParents("paras", immediateOnly = TRUE)
 ## Filter out sumLogProb
-dataNodes  = dataNodes[which(dataNodes!="sumLogProb")]
-stochNodes = stochNodes[which(stochNodes!="sumLogProb")]
-detNodes   = detNodes[which(detNodes!="sumLogProb")]
+## dataNodes  = dataNodes[which(dataNodes!="sumLogProb")]
+## stochNodes = stochNodes[which(stochNodes!="sumLogProb")]
+## detNodes   = detNodes[which(detNodes!="sumLogProb")]
 
 ####################################
 ## Initialise deterministic nodes ##
@@ -186,7 +192,7 @@ system.time(simulate(cPsyllid, detNodes))
 #########################################
 # cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
 calculate(cPsyllid, c(stochNodes,dataNodes))
-calculate(cPsyllid, "sumLogProb")
+## calculate(cPsyllid, "sumLogProb")
 if (!is.finite(calculate(cPsyllid)))
   stop("Non-finite likelihood detected.")
 
@@ -226,20 +232,17 @@ if (FALSE) {
 ## Next steps... set up MCMC ##
 ###############################
 thin = 100
-mcmcConf <- configureMCMC(model=rPsyllid, monitors=monitorNodes, monitors2 = "sumLogProb", thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
+mcmcConf <- configureMCMC(model=rPsyllid, monitors=monitorNodes, ## monitors2 = "sumLogProb",
+                          thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
 mcmcConf$getMonitors()
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$removeSamplers()
-configureStoreLogProb(mcmcConf, cPsyllid, 'sumLogProb') ## For tracking posterior log-likelihood
-mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.1))
+## configureStoreLogProb(mcmcConf, cPsyllid, 'sumLogProb') ## For tracking posterior log-likelihood
+mcmcConf$addSampler(target=stochNodes, type="RW_block_tempered", control=list(scale=0.1, propCov=cov(previousSampScale), temperPriors=TRUE))
 mcmcConf
-##  APT
+## Build and compile the APT
 aptR <- buildAPT(mcmcConf, Temps = 1:4, ULT = 1000, print= TRUE) # only 4 temperatures to avoid memory issues
-aptR$run(niter=15000)
-aptSamples <- tail(as.matrix(aptR$mvSamples), 10000)
-## Build and compile the MCMC
-Rmcmc = buildMCMC(mcmcConf)
-Cmcmc = compileNimble(Rmcmc)
+aptC <- compileNimble(aptR)
 
 # 1000 iterations in 2.5 hours on laptop with univariate samplers
 # 1000 iterations in 5.4 minutes on workstation with 1 block sampler
@@ -248,21 +251,21 @@ Cmcmc = compileNimble(Rmcmc)
 ##################
 ## Run the MCMC ##
 ##################
-nIter =  2E5 # 1E4
-STime <- run.time(Cmcmc$run(nIter, thin = 100, thin2=100, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+nIter =  6E4 # Probably one day
+STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
 #############################
 ## Extract log-likelihoods ##
 #############################
 STime / 60 / 60
-logliks <- as.matrix(Cmcmc$mvSamples2)
+logliks <- as.matrix(aptC$logProbs)
 logliks <- coda::as.mcmc(logliks[!(is.na(logliks[,1])),])
 plot(logliks)
 
 #####################################
 ## Extract samples and save tofile ##
 #####################################
-samples <- as.matrix(Cmcmc$mvSamples)
+samples <- as.matrix(aptC$mvSamples)
 samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
 summary(samples)
 plot(samples)
@@ -336,9 +339,9 @@ for (ii in 1: length(resVec)) {
   detNodesRes     = cPsyllidRes$getNodeNames(determOnly = TRUE)                      # Deterministic nodes
   monitorNodesRes = cPsyllidRes$getParents("paras", immediateOnly = TRUE)
   ## Filter out sumLogProb
-  dataNodesRes  = dataNodesRes[which(dataNodesRes!="sumLogProb")]
-  stochNodesRes = stochNodesRes[which(stochNodesRes!="sumLogProb")]
-  detNodesRes   = detNodesRes[which(detNodesRes!="sumLogProb")]
+  ## dataNodesRes  = dataNodesRes[which(dataNodesRes!="sumLogProb")]
+  ## stochNodesRes = stochNodesRes[which(stochNodesRes!="sumLogProb")]
+  ## detNodesRes   = detNodesRes[which(detNodesRes!="sumLogProb")]
   ####################################
   ## Initialise deterministic nodes ##
   ####################################
