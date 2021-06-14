@@ -241,7 +241,8 @@ mcmcConf$removeSamplers()
 mcmcConf$addSampler(target=stochNodes, type="RW_block_tempered", control=list(scale=0.1, propCov=cov(previousSampScale), temperPriors=TRUE))
 mcmcConf
 ## Build and compile the APT
-aptR <- buildAPT(mcmcConf, Temps = 1:4, ULT = 1000, print= TRUE) # only 4 temperatures to avoid memory issues
+nTemps = 8
+aptR <- buildAPT(mcmcConf, Temps = 1:nTemps, ULT = 1000, print= TRUE) # only 4 temperatures to avoid memory issues
 aptC <- compileNimble(aptR)
 
 # 1000 iterations in 2.5 hours on laptop with univariate samplers
@@ -271,16 +272,19 @@ summary(samples)
 plot(samples)
 
 sort(effectiveSize(samples))
+# sort(effectiveSize(samples[-(1:2500),]))
 
 ## crosscorr(samples)
 ## crosscorr.plot(samples)
 ## sort(apply(crosscorr(samples) - diag(1, 36), 1, function(x) max(abs(x))), dec=TRUE)
 
-(fileName = paste0("MCMC/",
-                   (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste0(collapse=""), "_",
-                   (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""), ".txt"))
+
+(fileName = paste0("APT/", (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste0(collapse="") %>% stringr::str_replace_all(":","-"), "_",
+                           (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""),
+                   "_Temps", nTemps,
+                   ".txt"))
 write.table(as.matrix(samples), file=fileName, row.names = FALSE)
-## samples=read.table("MCMC/mcmcJun2.txt", header = TRUE)
+## samples=read.table("APT/mcmcJun2.txt", header = TRUE)
 
 
 write.table(as.matrix(logliks), row.names = FALSE, file=sub("\\.","_loglik.",fileName))
@@ -302,14 +306,10 @@ if (TRUE) {
 ## class(samples[-c(1:13000),])
 ## crosscorr.plot(as.mcmc(samples[-c(1:13000),]))
 
-## APT results
-summary(aptSamples)
-plot(aptSamples,xlab="",ylab="", type="l")
-points(aptSamples, col="red", pch="19", cex=0.1)
-legend("topleft", legend = c("jumps","samples"),col=c("black","red"), pch=c("_","x"),bg="white")
 
-
-## res x time iter
+#####################################
+## CPU time experiment: res x time ##
+#####################################
 resVec <- seq(25,100,25) # with niter fix
 dataResTime <- cbind(resVec,rep(0,length(resVec)))
 colnames(dataResTime) <- c("res","time")
