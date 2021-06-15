@@ -1,8 +1,10 @@
+## source(here("src/fitModel.R"))
+
 ########################
 ## Set some constants ##
 ########################
 SDmodel = 1 # 2, 3, 4, 5     ## Identifywhich model to use for SD
-nTemps  = 12                 ## Number of temperatures in APT samplers
+nTemps  = 4 # 8 12 16 20     ## Number of temperatures in APT samplers
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###########################
@@ -86,7 +88,7 @@ aptC <- compileNimble(aptR)
 ##################
 ## Run the MCMC ##
 ##################
-nIter =  6E4 # Probably one day
+nIter =  6E4 # 28.8 hours with 4 temps
 STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 
 #############################
