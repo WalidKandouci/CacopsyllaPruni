@@ -37,21 +37,50 @@ for (ii in 1:length(paraNames)) {                            # A loop to fill ea
 simulate(cPsyllid, depNodes) # Updates "paras" "devKernel" "states" "pStage"
 
 
-nMcmcSamples = 11
+nMcmcSamples = 3
 pStage = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
 
-par(mfrow=c(4,4))
 for (iMCMC in 1:nMcmcSamples) {
+  print(iMCMC)
+  iRow    = sample(nrow(samples),1)                          # Index for a random row. Later this can be replaced by a loop.
+  for (ii in 1:length(paraNames)) {                            # A loop to fill each parameter node of the model that can handle alternative sets of parameter names
+    myCommand = paste0("cPsyllid$", paraNames[ii], " = as.numeric(samples[iRow, grep(paraNames[ii],colnames(samples))])")
+    eval(parse(text= myCommand))
+    ## Here's a quick check that this works
+    ## cPsyllid$shapeSD
+    ## samples[iRow, grep("shapeSD",colnames(samples))]
+  }
+  simulate(cPsyllid, depNodes) # Updates "paras" "devKernel" "states" "pStage"
   for(iTree in 1:nTrees){
     for (iStage in 1:nStagesTot){
-      ## plot(states[iTree, iStage, substage],type='l', col="grey", xlab="time", ylab="dev")
-      ## points(states[iTree, iStage, substage],type='l', col="grey")
-      ##
+      #plot(cPsyllid$states[iTree, iStage, substage],type='l', col="grey", xlab="time", ylab="dev")
+      #points(cPsyllid$states[iTree, iStage, substage],type='l', col="grey")
       ## 1) R won't find states. You need to use cPsyllid$states
       ## 2) states includes all sub-stages. We don't really care about substages, so you need to sum them (in the same way that the model does to obtain pStage
-      pStage[iMCMC,,iTree,iStage] =
+      iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
+      nSteps = length(iMeteo)
+      if(iStage < nStagesTot){
+        pStage[iMCMC,1:nSteps,iTree,iStage] = rowSums(cPsyllid$states[iTree, 1:nSteps, ((iStage-1)*res+1):(iStage*res)])
+      } else{
+        pStage[iMCMC,1:nSteps,iTree,iStage] = (cPsyllid$states[iTree, 1:nSteps, ((iStage-1)*res+1)])
+      }
+      pStage[iMCMC,1:nSteps,iTree,] = pStage[iMCMC,1:nSteps,iTree,]/ rowSums(pStage[iMCMC,1:nSteps,iTree,])
       ## So first construct pStage (the proportion of the population in each stage)
       ## Then plot it... but also think about how you will handle multiple lines of MCMC output (& will you use lines with transparency or polygons for showing CIs?)
     }
   }
 }
+
+
+iMCMC = 1
+iStage = 1
+iTree = 1 # the tree
+iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
+nSteps = length(iMeteo)
+plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
+
+for(iStage in 1:nStagesTot){
+  lines(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo])
+  pStage[iMCMC,1:nSteps,iTree,]
+  }
+
