@@ -10,7 +10,7 @@ cPsyllid = compileNimble(rPsyllid)
 ###############################################
 samples  = read.table(here("APT/Jun-17_06-54-03_2021_Temps8.txt"), header=TRUE)
 samples2 = read.table(here("APT/Jun-17_06-54-03_2021_Temps8_loglik.txt"), header=TRUE)
-
+samplesFile = ("Jun-17_06-54-03_2021_Temps8")
 ##############################
 ## Node lists to work with  ##
 ##############################
@@ -86,20 +86,38 @@ for(iStage in 1:nStagesTot){
   pStage[iMCMC,1:nSteps,iTree,]
 }
 
-
-
-plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
-vecColor =c("red","blue","green","grey","yellow","purple","pink")
-for(iStage in 1:nStagesTot){
-  quant = apply(pStage[,1:nSteps,iTree,iStage], 2, "quantile", prob=c(0.025,0.5,0.975))
-  #lines(quant[1,]~meteo$date[iMeteo], col="red")
-  polygon(x=c(meteo$date[iMeteo], rev(meteo$date[iMeteo])),
-          y=c(quant[1,],rev(quant[3,])),
-          col = adjustcolor(vecColor[iStage], alpha.f = 0.50), border = NA)
-  points(meteo$date[iMeteoForObs[[iTree]]][-1], (psyllidsArray[iTree,2:nObs[iTree],] / rowSums(psyllidsArray[iTree,2:nObs[iTree],]))[,iStage], pch=4, lwd=2, col=vecColor[iStage])
-  #lines(quant[2,]~meteo$date[iMeteo], col="blue")
-  #lines(quant[3,]~meteo$date[iMeteo], col="red")
-  #pStage[iMCMC,1:nSteps,iTree,]
+pdf(file = here(paste("APT/",samplesFile, "_proportions.pdf")))
+for(iTree in 1:nTrees) {
+  iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
+  nSteps = length(iMeteo)
+  plot(
+    pStage[iMCMC, 1:nSteps, iTree, iStage] ~ meteo$date[iMeteo],
+    type = 'n',
+    ylim = c(0, 1),
+    xlab = "time",
+    ylab = "proportion",
+    main = paste("Tree", psyllids[[iTree]][1, 2])
+  )
+  vecColor = c("red", "blue", "green", "grey", "orange", "purple", "pink")
+  for (iStage in 1:nStagesTot) {
+    quant = apply(pStage[, 1:nSteps, iTree, iStage], 2, "quantile", prob = c(0.025, 0.5, 0.975))
+    #lines(quant[1,]~meteo$date[iMeteo], col="red")
+    polygon(
+      x = c(meteo$date[iMeteo], rev(meteo$date[iMeteo])),
+      y = c(quant[1, ], rev(quant[3, ])),
+      col = adjustcolor(vecColor[iStage], alpha.f = 0.50),
+      border = NA
+    )
+    points(
+      meteo$date[iMeteoForObs[[iTree]]][-1],
+      (psyllidsArray[iTree, 1:nObs[iTree], ] / rowSums(psyllidsArray[iTree, 1:nObs[iTree], ]))[-1, iStage],
+      pch = 4,
+      lwd = 2,
+      col = vecColor[iStage]
+    )
+    #lines(quant[2,]~meteo$date[iMeteo], col="blue")
+    #lines(quant[3,]~meteo$date[iMeteo], col="red")
+    #pStage[iMCMC,1:nSteps,iTree,]
+  }
 }
-
-psyllidsArray[iTree,2:nObs[iTree],] / rowSums(psyllidsArray[iTree,2:nObs[iTree],])
+dev.off()
