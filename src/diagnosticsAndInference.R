@@ -27,15 +27,6 @@ depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, i
 
 # DP: Well first, you need to take one row of parameters from the MCMC output, plug it into the model & update and dependant nodes
 #     This code chunk will probably need plugging into your loops somewhere
-iMCMC     = sample(nrow(samples),1)                          # Index for a random row. Later this can be replaced by a loop.
-for (ii in 1:length(paraNames)) {                            # A loop to fill each parameter node of the model that can handle alternative sets of parameter names
-  eval(parse(text=paste0("cPsyllid$", paraNames[ii], " = as.numeric(samples[iMCMC, grep(paraNames[ii],colnames(samples))])")))
-  ## Here's a quick check that this works
-  ## cPsyllid$shapeSD
-  ## samples[iMCMC, grep("shapeSD",colnames(samples))]
-}
-simulate(cPsyllid, depNodes) # Updates "paras" "devKernel" "states" "pStage"
-
 
 nMcmcSamples = 3
 pStage = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
@@ -64,10 +55,11 @@ for (iMCMC in 1:nMcmcSamples) {
       } else{
         pStage[iMCMC,1:nSteps,iTree,iStage] = (cPsyllid$states[iTree, 1:nSteps, ((iStage-1)*res+1)])
       }
-      pStage[iMCMC,1:nSteps,iTree,] = pStage[iMCMC,1:nSteps,iTree,]/ rowSums(pStage[iMCMC,1:nSteps,iTree,])
       ## So first construct pStage (the proportion of the population in each stage)
       ## Then plot it... but also think about how you will handle multiple lines of MCMC output (& will you use lines with transparency or polygons for showing CIs?)
     }
+    #browser()
+    pStage[iMCMC,1:nSteps,iTree,] = pStage[iMCMC,1:nSteps,iTree,]/ rowSums(pStage[iMCMC,1:nSteps,iTree,])
   }
 }
 
@@ -82,5 +74,32 @@ plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0
 for(iStage in 1:nStagesTot){
   lines(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo])
   pStage[iMCMC,1:nSteps,iTree,]
-  }
+}
 
+
+plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
+for(iStage in 1:nStagesTot){
+  quant = apply(pStage[,1:nSteps,iTree,iStage], 2, "quantile", prob=c(0.025,0.5,0.975))
+  lines(quant[1,]~meteo$date[iMeteo], col="red")
+  lines(quant[2,]~meteo$date[iMeteo], col="blue")
+  lines(quant[3,]~meteo$date[iMeteo], col="red")
+  pStage[iMCMC,1:nSteps,iTree,]
+}
+
+
+
+plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
+vecColor =c("red","blue","green","grey","yellow","purple","pink")
+for(iStage in 1:nStagesTot){
+  quant = apply(pStage[,1:nSteps,iTree,iStage], 2, "quantile", prob=c(0.025,0.5,0.975))
+  #lines(quant[1,]~meteo$date[iMeteo], col="red")
+  polygon(x=c(meteo$date[iMeteo], rev(meteo$date[iMeteo])),
+          y=c(quant[1,],rev(quant[3,])),
+          col = adjustcolor(vecColor[iStage], alpha.f = 0.50), border = NA)
+  points(meteo$date[iMeteoForObs[[iTree]]][-1], (psyllidsArray[iTree,2:nObs[iTree],] / rowSums(psyllidsArray[iTree,2:nObs[iTree],]))[,iStage], pch=4, lwd=2, col=vecColor[iStage])
+  #lines(quant[2,]~meteo$date[iMeteo], col="blue")
+  #lines(quant[3,]~meteo$date[iMeteo], col="red")
+  #pStage[iMCMC,1:nSteps,iTree,]
+}
+
+psyllidsArray[iTree,2:nObs[iTree],] / rowSums(psyllidsArray[iTree,2:nObs[iTree],])
