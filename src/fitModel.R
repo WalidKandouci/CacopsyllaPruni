@@ -88,8 +88,13 @@ aptC <- compileNimble(aptR)
 ##################
 ## Run the MCMC ##
 ##################
-nIter =  6E4 # 28.8 hours with 4 temps
+nIter =  6E4
 STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+#  4 temps - 28.8 & 27.7 hours
+#  8 temps - 57.4 hours
+# 12 temps -
+# 16 temps -
+# 20 temps -
 
 #############################
 ## Extract log-likelihoods ##
@@ -120,7 +125,8 @@ sort(effectiveSize(samples))
 ##########################
 ## Write output to file ##
 ##########################
-(fileName = paste0("APT/", (date() %>% strsplit(" "))[[1]][c(2,4)] %>% paste0(collapse="") %>% stringr::str_replace_all(":","-"), "_",
+(fileName = paste0("APT/", (date() %>% strsplit(" "))[[1]][c(2,3)] %>% paste0(collapse="-") %>% paste0("_"),
+                           (date() %>% strsplit(" "))[[1]][c(4)] %>% stringr::str_replace_all(":","-"), "_",
                            (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""),
                    "_Temps", nTemps,
                    ".txt"))
