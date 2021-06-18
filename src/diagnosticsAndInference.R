@@ -1,3 +1,4 @@
+## source(here("src/diagnosticsAndInference.R"))
 library(here)
 library(dplyr)
 library(nimbleTempDev)
@@ -8,9 +9,17 @@ cPsyllid = compileNimble(rPsyllid)
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samples  = read.table(here("APT/Jun-17_06-54-03_2021_Temps8.txt"), header=TRUE)
-samples2 = read.table(here("APT/Jun-17_06-54-03_2021_Temps8_loglik.txt"), header=TRUE)
-samplesFile = ("Jun-17_06-54-03_2021_Temps8")
+samplesFileStem = ("Jun-18_19-38-37_2021_Temps4")
+samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
+samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
+
+####################
+## Remove burn-in ##
+####################
+burn = 1:4000
+samples  = samples[-burn,]
+samples2 = samples2[-burn,]
+
 ##############################
 ## Node lists to work with  ##
 ##############################
@@ -28,7 +37,7 @@ depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, i
 # DP: Well first, you need to take one row of parameters from the MCMC output, plug it into the model & update and dependant nodes
 #     This code chunk will probably need plugging into your loops somewhere
 
-nMcmcSamples = 3
+nMcmcSamples = 1000
 pStage = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
 
 for (iMCMC in 1:nMcmcSamples) {
@@ -77,16 +86,16 @@ for(iStage in 1:nStagesTot){
 }
 
 
-plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
-for(iStage in 1:nStagesTot){
-  quant = apply(pStage[,1:nSteps,iTree,iStage], 2, "quantile", prob=c(0.025,0.5,0.975))
-  lines(quant[1,]~meteo$date[iMeteo], col="red")
-  lines(quant[2,]~meteo$date[iMeteo], col="blue")
-  lines(quant[3,]~meteo$date[iMeteo], col="red")
-  pStage[iMCMC,1:nSteps,iTree,]
-}
+## plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
+## for(iStage in 1:nStagesTot){
+##   quant = apply(pStage[,1:nSteps,iTree,iStage], 2, "quantile", prob=c(0.025,0.5,0.975))
+##   lines(quant[1,]~meteo$date[iMeteo], col="red")
+##   lines(quant[2,]~meteo$date[iMeteo], col="blue")
+##   lines(quant[3,]~meteo$date[iMeteo], col="red")
+##   pStage[iMCMC,1:nSteps,iTree,]
+## }
 
-pdf(file = here(paste("APT/",samplesFile, "_proportions.pdf")))
+pdf(file = here(paste0("APT/",samplesFileStem, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
   iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
   nSteps = length(iMeteo)

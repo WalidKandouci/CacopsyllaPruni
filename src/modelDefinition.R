@@ -55,22 +55,17 @@ psyllidCode <- nimbleCode ({
       logit(shapeSD[stage])       ~ dLogitBeta(1,1)
       logit(amplitudeSD[stage])   ~ dLogitBeta(1,1)
       paras[stage,1:lTempVec,2] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
-    }
-    
-    else if (SDmodel == 2) { # maybe use this for linear regression ?
-      #aa 
+    } else if (SDmodel == 2) { # maybe use this for linear regression ?
+      #aa
       #bb
       paras[stage,1:lTempVec,2] <- campbell(t=tempVec[1:lTempVec], aa=, bb=)
-    }
-    
-    else if (SDmodel == 3) { # sd = aa + X * bb
+    } else if (SDmodel == 3) { # sd = aa + X * bb
       X = meteo$date[iMeteo]
       int = rep(1,length(paras[stage,1:lTempVec,2]))
       X = cbind(int,X)
       bb = solve(t(X)%*% X) %*% t(X) %*% paras[stage,1:lTempVec,2]
       bb = round(bb,2)
     }
-    
     ## etc
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Survival
@@ -142,9 +137,9 @@ Const             = list(
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-previousMCMCfile = here("APT/Jun-17_06-54-03_2021_Temps8.txt")
+previousMCMCfile = here("APT/Jun-18_19-38-37_2021_Temps4.txt")
 previous = read.table(previousMCMCfile, header=TRUE)
-previous = previous[-round(1:nrow(previous)/2),]
+previous = previous[-round(1:nrow(previous)/2),] # Remove 1/2 the samples as burn-in
 ##
 previousSampScale = previous
 previousSampScale[,-grep("T", colnames(previous))] = logit(previousSampScale[,-grep("T", colnames(previous))])
