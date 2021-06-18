@@ -92,8 +92,8 @@ nIter =  6E4
 STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
 #  4 temps - 28.8 & 27.7 hours
 #  8 temps - 57.4 hours
-# 12 temps -
-# 16 temps -
+# 12 temps - 82.7 hours
+# 16 temps - 107.6 hours
 # 20 temps -
 
 #############################
