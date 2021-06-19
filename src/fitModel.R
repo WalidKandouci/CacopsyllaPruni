@@ -1,10 +1,10 @@
-## source(here("src/fitModel.R"))
+## source(here::here("src/fitModel.R"))
 
 ########################
 ## Set some constants ##
 ########################
 SDmodel = 1 # 2, 3, 4, 5     ## Identifywhich model to use for SD
-nTemps  = 16 # 4 # 8 12 16 20     ## Number of temperatures in APT samplers
+nTemps  = 4 # 4 # 8 12 16 20     ## Number of temperatures in APT samplers
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###########################

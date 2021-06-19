@@ -38,7 +38,7 @@ depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, i
 # DP: Well first, you need to take one row of parameters from the MCMC output, plug it into the model & update and dependant nodes
 #     This code chunk will probably need plugging into your loops somewhere
 
-nMcmcSamples = 1000
+nMcmcSamples = 10 # 1000
 pStage = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
 
 for (iMCMC in 1:nMcmcSamples) {

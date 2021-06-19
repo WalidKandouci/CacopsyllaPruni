@@ -35,7 +35,6 @@ sparseTWstep = nimbleFunction(
     res = nimDim(devMat)[2]-1
     vecLength = res*nstage+1
     vecNew = nimNumeric(length=vecLength)
-    temp   = nimNumeric(length=res + 1)
     for (stage in 1:nstage){
       iWB = nimNumeric(length = res+1) # iWB: index within-between stage
       iWB[1:res] = (stage -1) * res + 1:res
