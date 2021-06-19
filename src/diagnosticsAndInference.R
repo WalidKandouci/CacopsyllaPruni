@@ -1,3 +1,4 @@
+## rm(list=ls())
 ## source(here("src/diagnosticsAndInference.R"))
 library(here)
 library(dplyr)
@@ -9,7 +10,7 @@ cPsyllid = compileNimble(rPsyllid)
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samplesFileStem = ("Jun-18_19-38-37_2021_Temps4")
+samplesFileStem = ("Jun-19_23-08-57_2021_Temps4")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
 
@@ -73,17 +74,16 @@ for (iMCMC in 1:nMcmcSamples) {
 }
 
 
-iMCMC = 1
-iStage = 1
-iTree = 1 # the tree
-iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
-nSteps = length(iMeteo)
-plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
-
-for(iStage in 1:nStagesTot){
-  lines(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo])
-  pStage[iMCMC,1:nSteps,iTree,]
-}
+## iMCMC = 1
+## iStage = 1
+## iTree = 1 # the tree
+## iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
+## nSteps = length(iMeteo)
+## plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
+## for(iStage in 1:nStagesTot){
+##   lines(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo])
+##   pStage[iMCMC,1:nSteps,iTree,]
+## }
 
 
 ## plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
