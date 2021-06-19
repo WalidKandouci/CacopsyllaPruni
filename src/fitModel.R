@@ -4,7 +4,7 @@
 ## Set some constants ##
 ########################
 SDmodel = 1 # 2, 3, 4, 5     ## Identifywhich model to use for SD
-nTemps  = 4 # 8 12 16 20     ## Number of temperatures in APT samplers
+nTemps  = 16 # 4 # 8 12 16 20     ## Number of temperatures in APT samplers
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###########################
@@ -89,9 +89,9 @@ aptC <- compileNimble(aptR)
 ## Run the MCMC ##
 ##################
 nIter =  6E4
-STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
-#  4 temps - 28.8 & 27.7 hours
-#  8 temps - 57.4 hours
+STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=FALSE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+#  4 temps - c(28.8, 27.7, 26.3) hours
+#  8 temps - c(57.4, 52.7) hours
 # 12 temps - 82.7 hours
 # 16 temps - 107.6 hours
 # 20 temps -
@@ -102,6 +102,7 @@ STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minut
 STime / 60 / 60
 logliks <- as.matrix(aptC$logProbs)
 logliks <- coda::as.mcmc(logliks[!(is.na(logliks[,1])),])
+#logliks <- coda::as.mcmc(logliks[-(1:50),])
 if (FALSE)
   plot(logliks)
 
