@@ -51,17 +51,36 @@ psyllidCode <- nimbleCode ({
     logit(shapeMean[stage])     ~ dLogitBeta(1,1)
     ## Mean development as a function of temperature
     paras[stage,1:lTempVec,1] <- stBriere(T=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
-    ## Standard deviatio in development as a function of temperature
-    if (SDmodel == 1) {
-      logit(shapeSD[stage])     ~ dLogitBeta(1,1)
-      logit(amplitudeSD[stage]) ~ dLogitBeta(1,1)
-      paras[stage,1:lTempVec,2] <- stBriere(temps=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
+    ## Standard deviation in development as a function of temperature
+    if (SDmodel == 1) { # sdDev(T) = meanDev(T) * constant
+      beta0SD[stage] ~ dnorm(0, tau=1E-6)
+      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0SD[stage])
     }
-    if (SDmodel == 2) { # maybe use this for linear regression ?
-      interceptSD[stage]  ~ dnorm(0, tau=1/20)
-      beta1SD[stage]      ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      beta2SD[stage]      ~ ddexp(location=0, scale=scaleBeta2SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(interceptSD[stage] + beta1SD[stage]*tempVec[1:lTempVec] + beta2SD[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
+    if (SDmodel == 2) { # sdDev(T) = constant, or zero (if meanDev(T)==0)
+      beta0SD[stage] ~ dnorm(0, tau=1E-6)
+      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0SD[stage])
+    }
+    if (SDmodel == 3) { # sdDev(T) = meanDev(T) * exp(a+b*T)
+      beta0SD[stage] ~ dnorm(0, tau=1E-6)
+      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec])
+    }
+    if (SDmodel == 4) { # sdDev(T) = exp(a+b*T), or zero (if meanDev(T)==0)
+      beta0SD[stage] ~ dnorm(0, tau=1E-6)
+      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec])
+    }
+    if (SDmodel == 5) { # sdDev(T) = meanDev(T) * exp(a + b*T + c*T^2)
+      beta0SD[stage] ~ dnorm(0, tau=1E-6)
+      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      beta2SD[stage] ~ ddexp(location=0, scale=scaleBeta2SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec] + beta2SD[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
+    }
+    if (SDmodel == 6) { # sdDev(T) = exp(a + b*T + c*T^2), or zero (if meanDev(T)==0)
+      beta0SD[stage] ~ dnorm(0, tau=1E-6)
+      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      beta2SD[stage] ~ ddexp(location=0, scale=scaleBeta2SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec] + beta2SD[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
     }
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Survival
@@ -70,9 +89,11 @@ psyllidCode <- nimbleCode ({
       devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
   }
-  ## Shared parameters for standard deviation in development
-  if (SDmodel == 2) {
+  ## Shared parameters for standard deviation in development models
+  if (SDmodel >= 3) {
     scaleBeta1SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
+  }
+  if (SDmodel >= 5) {
     scaleBeta2SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
   #####################
@@ -157,7 +178,7 @@ Inits = list(
   logit_amplitudeSD   = previous %>% select(grep("amplitudeSD",   colnames(previous))) %>% logit() %>% as.numeric(),
   logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric(),
   ## For SDmodel == 2
-  interceptSD  = rep(1, nStagesDev),
+  beta0SD  = rep(1, nStagesDev),
   beta1SD      = rep(0, nStagesDev),
   beta2SD      = rep(0, nStagesDev),
   scaleBeta1SD = (1/nStagesDev) / (1/2),
