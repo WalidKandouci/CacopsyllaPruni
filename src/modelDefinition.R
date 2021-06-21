@@ -49,8 +49,9 @@ psyllidCode <- nimbleCode ({
     Tmax[stage]                 ~ dunif( 20, 60) # dnorm(40,sd=20)
     logit(amplitudeMean[stage]) ~ dLogitBeta(1,1)
     logit(shapeMean[stage])     ~ dLogitBeta(1,1)
-    ## Briere functional response curves
+    ## Mean development as a function of temperature
     paras[stage,1:lTempVec,1] <- stBriere(T=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
+    ## Standard deviatio in development as a function of temperature
     if (SDmodel == 1) {
       logit(shapeSD[stage])     ~ dLogitBeta(1,1)
       logit(amplitudeSD[stage]) ~ dLogitBeta(1,1)
@@ -62,7 +63,6 @@ psyllidCode <- nimbleCode ({
       beta2SD[stage]      ~ ddexp(location=0, scale=scaleBeta2SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
       paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(interceptSD[stage] + beta1SD[stage]*tempVec[1:lTempVec] + beta2SD[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
     }
-    ## etc
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Survival
       paras[stage,iTemp,3] <- 1
@@ -70,6 +70,7 @@ psyllidCode <- nimbleCode ({
       devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
   }
+  ## Shared parameters for standard deviation in development
   if (SDmodel == 2) {
     scaleBeta1SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
     scaleBeta2SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
