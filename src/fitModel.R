@@ -1,10 +1,11 @@
+## rm(list=ls())
 ## source(here::here("src/fitModel.R"))
 
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 1 # 2, 3, 4, 5     ## Identifywhich model to use for SD
-nTemps  = 4 # 4 # 8 12 16 20     ## Number of temperatures in APT samplers
+SDmodel = 2 # 2, 3, 4, 5     ## Identifywhich model to use for SD
+nTemps  = 2 # 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###########################
@@ -75,7 +76,8 @@ mcmcConf <- configureMCMC(model=rPsyllid, monitors=monitorNodes, ## monitors2 = 
 mcmcConf$getMonitors()
 mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
 mcmcConf$removeSamplers()
-mcmcConf$addSampler(target=stochNodes, type="RW_block_tempered", control=list(scale=0.1, propCov=cov(previousSampScale), temperPriors=TRUE))
+mcmcConf$addSampler(target=stochNodes, type="RW_block_tempered", control=list(scale=0.1, # propCov=cov(previousSampScale),
+                                                                              temperPriors=TRUE))
 mcmcConf
 
 ################################
@@ -89,19 +91,30 @@ aptC <- compileNimble(aptR)
 ## Run the MCMC ##
 ##################
 nIter =  6E4
-STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=FALSE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
-#  4 temps - c(28.8, 27.7, 26.3) hours
-#  8 temps - c(57.4, 52.7) hours
-# 12 temps - 82.7 hours
-# 16 temps - 107.6 hours
+# nIter =  1E5
+STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+## SDmodel==2
+#  4 temps - c(23.4)
+#  8 temps - c(
+# 12 temps -
+# 16 temps -
 # 20 temps -
+
+## SDmodel==2
+#  2 temps - 11.8 hours - 6E4 iterations
+
+####################################
+## Optional burn-in to be removed ##
+####################################
+burn = 1:3000
+# burn = 1
 
 #############################
 ## Extract log-likelihoods ##
 #############################
 STime / 60 / 60
-logliks <- as.matrix(aptC$logProbs)
-logliks <- coda::as.mcmc(logliks[!(is.na(logliks[,1])),])
+logliks <- coda::as.mcmc(as.matrix(aptC$logProbs)[-burn,])
+#logliks <- coda::as.mcmc(logliks[!(is.na(logliks[,1])),])
 #logliks <- coda::as.mcmc(logliks[-(1:50),])
 if (FALSE)
   plot(logliks)
@@ -109,11 +122,12 @@ if (FALSE)
 #####################################
 ## Extract samples and save tofile ##
 #####################################
-samples <- as.matrix(aptC$mvSamples)
-samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
+samples <- coda::as.mcmc(as.matrix(aptC$mvSamples)[-burn,])
+# samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
 summary(samples)
 if (FALSE)
   plot(samples)
+
 
 
 sort(effectiveSize(samples))
@@ -126,7 +140,8 @@ sort(effectiveSize(samples))
 ##########################
 ## Write output to file ##
 ##########################
-(fileName = paste0("APT/", (date() %>% strsplit(" "))[[1]][c(2,3)] %>% paste0(collapse="-") %>% paste0("_"),
+(fileName = paste0("APT/model", SDmodel, "_",
+                           (date() %>% strsplit(" "))[[1]][c(2,3)] %>% paste0(collapse="-") %>% paste0("_"),
                            (date() %>% strsplit(" "))[[1]][c(4)] %>% stringr::str_replace_all(":","-"), "_",
                            (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""),
                    "_Temps", nTemps,

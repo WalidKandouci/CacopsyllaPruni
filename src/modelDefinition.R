@@ -26,7 +26,7 @@ source("src/functions.R")
 #data4
 
 if (!exists("setConstantsElsewhere")) { ## This flag permits other scripts (which source this script) to set the following constants
-  SDmodel = 1 # 2, 3, 4, 5
+  SDmodel = 2 # 1, 2, 3, 4, 5
 }
 
 # import imputed values & replace NA
@@ -50,21 +50,17 @@ psyllidCode <- nimbleCode ({
     logit(amplitudeMean[stage]) ~ dLogitBeta(1,1)
     logit(shapeMean[stage])     ~ dLogitBeta(1,1)
     ## Briere functional response curves
-    paras[stage,1:lTempVec,1] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
+    paras[stage,1:lTempVec,1] <- stBriere(temps=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
     if (SDmodel == 1) {
-      logit(shapeSD[stage])       ~ dLogitBeta(1,1)
-      logit(amplitudeSD[stage])   ~ dLogitBeta(1,1)
-      paras[stage,1:lTempVec,2] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
-    } else if (SDmodel == 2) { # maybe use this for linear regression ?
-      #aa
-      #bb
-      paras[stage,1:lTempVec,2] <- campbell(t=tempVec[1:lTempVec], aa=, bb=)
-    } else if (SDmodel == 3) { # sd = aa + X * bb
-      X = meteo$date[iMeteo]
-      int = rep(1,length(paras[stage,1:lTempVec,2]))
-      X = cbind(int,X)
-      bb = solve(t(X)%*% X) %*% t(X) %*% paras[stage,1:lTempVec,2]
-      bb = round(bb,2)
+      logit(shapeSD[stage])     ~ dLogitBeta(1,1)
+      logit(amplitudeSD[stage]) ~ dLogitBeta(1,1)
+      paras[stage,1:lTempVec,2] <- stBriere(temps=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
+    }
+    if (SDmodel == 2) { # maybe use this for linear regression ?
+      interceptSD[stage]  ~ dnorm(0, tau=1/20)
+      beta1SD[stage]      ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      beta2SD[stage]      ~ ddexp(location=0, scale=scaleBeta2SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(interceptSD[stage] + beta1SD[stage]*tempVec[1:lTempVec] + beta2SD[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
     }
     ## etc
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
@@ -73,6 +69,10 @@ psyllidCode <- nimbleCode ({
       ## Possibly add a parameter transformation step here ???
       devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
     }
+  }
+  if (SDmodel == 2) {
+    scaleBeta1SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
+    scaleBeta2SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
   #####################
   ## Loop over trees ##
@@ -150,11 +150,17 @@ Inits = list(
   ## Last values retrned from a previous run
   Tmin                = previous %>% select(grep("Tmin",          colnames(previous))) %>% as.numeric(),
   Tmax                = previous %>% select(grep("Tmax",          colnames(previous))) %>% as.numeric(),
+  ## For SDmodel == 1
   logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% logit() %>% as.numeric(),
   logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% logit() %>% as.numeric(),
   logit_amplitudeSD   = previous %>% select(grep("amplitudeSD",   colnames(previous))) %>% logit() %>% as.numeric(),
-  logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric()
-  ### sumLogProb          = 0
+  logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric(),
+  ## For SDmodel == 2
+  interceptSD  = rep(1, nStagesDev),
+  beta1SD      = rep(0, nStagesDev),
+  beta2SD      = rep(0, nStagesDev),
+  scaleBeta1SD = (1/nStagesDev) / (1/2),
+  scaleBeta2SD = (1/nStagesDev) / (1/2)
 )
 
 
