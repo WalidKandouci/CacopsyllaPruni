@@ -8,9 +8,17 @@ cPsyllid = compileNimble(rPsyllid)
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samples  = read.table(here("APT/Jun-17_06-54-03_2021_Temps8.txt"), header=TRUE)
-samples2 = read.table(here("APT/Jun-17_06-54-03_2021_Temps8_loglik.txt"), header=TRUE)
-samplesFile = ("Jun-17_06-54-03_2021_Temps8")
+samples  = read.table(here("APT/Jun-17_06-54-18_2021_Temps4.txt"), header=TRUE)
+samples2 = read.table(here("APT/Jun-17_06-54-18_2021_Temps4.txt"), header=TRUE)
+samplesFile = ("Jun-17_06-54-18_2021_Temps4")
+
+####################
+## Apply a burnin ##
+####################
+burn = 1:4000
+samples = samples[-burn,]
+samples2 = samples2[-burn]
+
 ##############################
 ## Node lists to work with  ##
 ##############################
