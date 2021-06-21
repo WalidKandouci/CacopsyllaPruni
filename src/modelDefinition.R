@@ -26,7 +26,7 @@ source("src/functions.R")
 #data4
 
 if (!exists("setConstantsElsewhere")) { ## This flag permits other scripts (which source this script) to set the following constants
-  SDmodel = 2 # 1, 2, 3, 4, 5
+  SDmodel = 1 # 2, 3, 4, 5
 }
 
 # import imputed values & replace NA
@@ -50,7 +50,7 @@ psyllidCode <- nimbleCode ({
     logit(amplitudeMean[stage]) ~ dLogitBeta(1,1)
     logit(shapeMean[stage])     ~ dLogitBeta(1,1)
     ## Briere functional response curves
-    paras[stage,1:lTempVec,1] <- stBriere(temps=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
+    paras[stage,1:lTempVec,1] <- stBriere(T=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
     if (SDmodel == 1) {
       logit(shapeSD[stage])     ~ dLogitBeta(1,1)
       logit(amplitudeSD[stage]) ~ dLogitBeta(1,1)
