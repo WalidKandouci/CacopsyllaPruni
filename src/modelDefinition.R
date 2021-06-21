@@ -55,16 +55,17 @@ psyllidCode <- nimbleCode ({
       logit(shapeSD[stage])       ~ dLogitBeta(1,1)
       logit(amplitudeSD[stage])   ~ dLogitBeta(1,1)
       paras[stage,1:lTempVec,2] <- stBriere(t=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeSD[stage],   amplitude=amplitudeSD[stage])   # Standard deviation of the development kernel
-    } else if (SDmodel == 2) { # maybe use this for linear regression ?
-      #aa
-      #bb
-      paras[stage,1:lTempVec,2] <- campbell(t=tempVec[1:lTempVec], aa=, bb=)
-    } else if (SDmodel == 3) { # sd = aa + X * bb
-      X = meteo$date[iMeteo]
-      int = rep(1,length(paras[stage,1:lTempVec,2]))
-      X = cbind(int,X)
-      bb = solve(t(X)%*% X) %*% t(X) %*% paras[stage,1:lTempVec,2]
-      bb = round(bb,2)
+    
+      } else if (SDmodel == 2) { # aa + X * bb
+        aa = 1 # initialize aa and bb
+        bb = 1      
+        paras[stage,1:lTempVec,2] <- campbell(t=tempVec[1:lTempVec], aa=aa, bb=bb)
+
+      } else if (SDmodel == 3) { # aa + X * bb + X^2 * cc
+        aa = 1
+        bb = 1
+        cc = 1
+        paras[stage,1:lTempVec,2] <- aa + tempVec[1:lTempVec] ** bb + (tempVec[1:lTempVec])^2 * cc
     }
     ## etc
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
