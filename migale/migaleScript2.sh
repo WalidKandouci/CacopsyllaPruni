@@ -13,4 +13,4 @@ echo "iModel is" $iModel
 
 ## Now call the R script
 echo "Now source the R script..."
-echo 'source("/projet/extern/save/wkandouci/CacopsyllaPruni/src/fitModel.R");' | R --vanilla --quiet --args $iModel $qsubID
+echo 'source("/home/dpleydell/work/CacopsyllaPruni/src/fitModel.R");' | R --vanilla --quiet --args $iModel $qsubID

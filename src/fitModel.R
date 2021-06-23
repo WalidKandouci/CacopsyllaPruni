@@ -4,11 +4,10 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 1 # 2, 3, 4, 5     ## Identifywhich model to use for SD
+SDmodel = 1 # 2, 3, 4, 5 ## Identifywhich model to use for SD
 nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin    = 10
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
-
 
 ## ###########################################
 ## Take arguments from script, if available ##
@@ -23,6 +22,15 @@ if (UseScript) {
     print(CA)
     print(SDmodel <- as.integer(CA)[1])
     print(qsubID  <- as.integer(CA)[2])
+    ## Ensure R can find nimble
+    library(dplyr)
+    library(here)
+    Rlibs = here() %>% sub(pattern="work",replacement="save") %>% sub(pattern="CacopsyllaPruni",replacement="R")
+    Rdirs = Rlibs %>% dir()
+    x86dir = Rdirs[grep("x86",Rdirs)]
+    libPath = paste0(Rlibs,"/",x86dir,"/4.0")
+    .libPaths(new=libPath)
+    ## .libPaths()
 } else {
     qsubID <- 123
 }
@@ -86,7 +94,6 @@ if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into th
 }
 
 
-
 ################################
 ## Plot the the Briere curves ##
 ################################
@@ -98,7 +105,7 @@ if (FALSE) { # TRUE
 }
 
 
-if (FALSE) {
+if (TRUE) { # FALSE
   #####################################################################
   ## Standard MCMC. It tends to get stuck, so APT can perform better ##
   #####################################################################
@@ -120,7 +127,7 @@ if (FALSE) {
   ##################
   ## Run the MCMC ##
   ##################
-  nIter =  5E4
+  nIter = 40 # 5E4
   RunTime <- run.time(mcmcC$run(nIter, thin = thin, thin2=thin, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
   ##
   samps <- tail(as.matrix(mcmcC$mvSamples), floor(nIter/thin)) ## Sampled parameters for T=1
@@ -155,16 +162,16 @@ aptR <- buildAPT(aptConf, Temps = 1:nTemps, ULT = 1000, print= TRUE) # only 4 te
 aptC <- compileNimble(aptR)
 
 
-
 ###############################################################################
 ## Loop with short runs of APT, until mean loglik shows signs of convergence ##
 ###############################################################################
-nIter            <- 3E4       ## One iteration of the loop will take approx 1 day
+nIter            <- 40 # 3E4       ## One iteration of the loop will take approx 1 day
 TuneTemper       <- c(10, 1)  ## default value is c(10,1)
 logliks          <- rnorm(nIter, cPsyllid$calculate(), 1)
 logliks_previous <- logliks - rnorm(length(logliks),10, 1)
 iter             <- 0
-while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
+#### while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
+while( iter == 0 ) {
   iter <- iter+1
   logliks_previous <- logliks
   print(paste0("iteration nb.", iter, "within while loop. meanL = ", mean(logliks_previous)))
@@ -216,7 +223,7 @@ print(paste0("iteration nb.", iter, "within while loop. meanL = ", meanL))
 ## Long run of APT ##
 #####################
 nIterShort = nIter
-nIter = 1E5
+nIter = 60 # 1E5
 nimPrint("Estimated run-time (hours) = ", (RunTime/60/60) * nIter / nIterShort)
 RunTime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=FALSE, resetTempering=FALSE, adaptTemps=FALSE))
 nimPrint("Run-time (hours) = ", RunTime / 60 / 60)

@@ -2,6 +2,7 @@
 ## This script can be called from fitModel.R to generate output files from aptC ##
 ##################################################################################
 
+
 #############################
 ## Extract log-likelihoods ##
 #############################
@@ -16,7 +17,7 @@ samples <- coda::as.mcmc(as.matrix(aptC$mvSamples))
 ## Write output to file ##
 ##########################
 (fileName = paste0(
-  "APT/model", SDmodel, "_",
+  "APT/model", SDmodel, "_", qsubID, "_", 
   (date() %>% strsplit(" "))[[1]][c(2,3)] %>% paste0(collapse="-") %>% paste0("_"),
   (date() %>% strsplit(" "))[[1]][c(4)] %>% stringr::str_replace_all(":","-"), "_",
   (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""),

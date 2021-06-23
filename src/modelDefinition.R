@@ -15,7 +15,6 @@ library(dplyr)         ## for piping %>%
 library(nimble)        ## for working with BUGS type models in R
 library(nimbleAPT)     ## for adaptive parallel tempering
 library(nimbleTempDev) ## for temperature depandant IPM
-library(imputeTS)      ## for na_kalman
 library(lubridate)     ## for dates and times
 library(coda)          ## for mcmc diagnostics
 
@@ -30,11 +29,18 @@ if (!exists("setConstantsElsewhere")) { ## This flag permits other scripts (whic
   SDmodel = 1 # 2, 3, 4, 5
 }
 
-# import imputed values & replace NA
-imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missing values
-#ggplot_na_distribution(meteo$temperature) # some nice plot
-#ggplot_na_imputations(meteo$temperature, imp)
-meteo$temperature <- round(imp) # NA free meteo dataset
+
+if (is.element("package:imputeTS", search())) {
+    library(imputeTS)      ## for na_kalman
+    ## Impute missing values
+    imp <- na_kalman(meteo$temperature) # use the Kalman filter  to imput our missing values
+                                        #ggplot_na_distribution(meteo$temperature) # some nice plot
+                                        #ggplot_na_imputations(meteo$temperature, imp)
+    meteo$temperature <- round(imp) # NA free meteo dataset
+} else {
+    ## A temporary hack because imputeTS won't install on migale
+    meteo$temperature[is.na(meteo$temperature)] = c(10, 10, 9)
+}
 
 
 ################################

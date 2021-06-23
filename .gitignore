@@ -37,3 +37,7 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Output and error files produced by Migale
+*.sh.e*
+*.sh.o*
