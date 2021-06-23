@@ -185,8 +185,6 @@ Inits = list(
   ## For SDmodel == 1
   logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% logit() %>% as.numeric(),
   logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% logit() %>% as.numeric(),
-  logit_amplitudeSD   = previous %>% select(grep("amplitudeSD",   colnames(previous))) %>% logit() %>% as.numeric(),
-  logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric(),
   ## For SDmodel == 2
   beta0      = rep(1, nStagesDev),
   beta1      = rep(0, nStagesDev),
