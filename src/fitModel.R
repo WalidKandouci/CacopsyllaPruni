@@ -9,6 +9,27 @@ nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin    = 10
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
+
+## ###########################################
+## Take arguments from script, if available ##
+CA <- commandArgs(TRUE)
+if (length(CA)==0) {
+    UseScript <- FALSE
+} else {
+    UseScript <- TRUE
+}
+
+if (UseScript) { 
+    print(CA)
+    print(SDmodel <- as.integer(CA)[1])
+    print(qsubID  <- as.integer(CA)[2])
+} else {
+    qsubID <- 123
+}
+
+
+
+
 ###########################
 ## Create rPsyllid model ##
 ###########################
