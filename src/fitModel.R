@@ -4,7 +4,7 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 1 # 2, 3, 4, 5     ## Identifywhich model to use for SD
+SDmodel = 6 # 4 # 5 # 3, 2, 1, 5 ## Identifywhich model to use for SD
 nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin    = 10
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R

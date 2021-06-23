@@ -2,6 +2,7 @@
 ## This script provides the definition of the multi-stageIPM model ##
 #####################################################################
 ## install.packages(c("here", "tibble", "dplyr", "nimble", "imputeTS", "lubridate", "coda")
+## remotes::install_git(url="https://github.com/DRJP/nimbleAPT.git", subdir="nimbleAPT", build_vignettes = FALSE)
 
 ## source(here::here("src/modelDefinition.R"))
 
@@ -59,7 +60,9 @@ psyllidCode <- nimbleCode ({
     }
     if (SDmodel == 2) { # sdDev(T) = constant, or zero (if meanDev(T)==0)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
-      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0[stage])
+      for (iTemp in 1:lTempVec) {
+        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage])
+      }
     }
     if (SDmodel == 3) { # sdDev(T) = meanDev(T) * exp(a+b*T)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
@@ -69,7 +72,9 @@ psyllidCode <- nimbleCode ({
     if (SDmodel == 4) { # sdDev(T) = exp(a+b*T), or zero (if meanDev(T)==0)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec])
+      for (iTemp in 1:lTempVec) {
+        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[iTemp])
+      }
     }
     if (SDmodel == 5) { # sdDev(T) = meanDev(T) * exp(a + b*T + c*T^2)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
@@ -81,7 +86,9 @@ psyllidCode <- nimbleCode ({
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
       beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec] + beta2[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
+      for (iTemp in 1:lTempVec) {
+        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[iTemp] + beta2[stage]*tempVec[iTemp]*tempVec[iTemp])
+      }
     }
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Survival
