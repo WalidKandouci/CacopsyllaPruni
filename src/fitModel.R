@@ -131,15 +131,18 @@ if (TRUE) { # FALSE
   RunTime <- run.time(mcmcC$run(nIter, thin = thin, thin2=thin, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
   ##
   samps <- tail(as.matrix(mcmcC$mvSamples), floor(nIter/thin)) ## Sampled parameters for T=1
-  plot(coda::as.mcmc(samps))
+  if (FALSE) 
+    plot(coda::as.mcmc(samps))
   covParas = cov(samps)
-  while(any(eigen(covParas)$values <= 0)) {
+  if(any(eigen(covParas)$values <= 0)) {
     covParas = covParas + diag(diag(covParas))
     nimPrint("Adjusting covParas to ensure positive definite")
   }
+  if(any(eigen(covParas)$values <= 0)) {
+    covParas = "identity"
+    nimPrint("Setting covParas to identity")
+  }  
 }
-
-
 
 
 ########################################################################################################
