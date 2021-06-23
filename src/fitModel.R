@@ -4,8 +4,9 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 2 # 2, 3, 4, 5     ## Identifywhich model to use for SD
-nTemps  = 2 # 4 # 8 12 16 20 ## Number of temperatures in APT samplers
+SDmodel = 1 # 2, 3, 4, 5     ## Identifywhich model to use for SD
+nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
+thin    = 10
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###########################
@@ -35,21 +36,32 @@ calculate(cPsyllid, c(stochNodes,dataNodes))
 if (!is.finite(calculate(cPsyllid)))
   stop("Non-finite likelihood detected.")
 
-
-##############################################
-## Identify better initial parameter values ##
-##############################################
-if (FALSE) { # This step takes about 1/2 hour, the output has been pasted into the definition of 'Inits' above
-  pVec = c(cPsyllid$Tmin, cPsyllid$Tmax, cPsyllid$logit_amplitudeMean, cPsyllid$logit_shapeMean, cPsyllid$logit_amplitudeSD, cPsyllid$logit_shapeSD)
-  opt = optim(pVec, function(pVec){
-    cPsyllid$Tmin                = pVec[1:6]
-    cPsyllid$Tmax                = pVec[6 + 1:6]
-    cPsyllid$logit_amplitudeMean = pVec[12 + 1:6]
-    cPsyllid$logit_shapeMean     = pVec[18 + 1:6]
-    cPsyllid$logit_amplitudeSD   = pVec[24 + 1:6]
-    cPsyllid$logit_shapeSD       = pVec[30 + 1:6]
-    calculate(cPsyllid, c(stochNodes,dataNodes))
-  }, control = list(fnscale=-1), hessian = FALSE)
+##########################################################
+## Optim for identifing better initial parameter values ##
+##########################################################
+if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into the definition of 'Inits' above
+  for (iter in 1:3) {
+    if (iter==1) {
+      command = paste0("pVec=c(", paste0("cPsyllid$",stochNodesUnique,collapse=", "),")")
+      eval(parse(text=command))
+      names(pVec) = stochNodes
+      print(pVec)
+    }
+    ## Run optim
+    opt = optim(pVec, function(vec){
+      names(vec) = stochNodes
+      ## Initialise the model parameters using vec
+      for (ii in 1:length(stochNodesUnique)) {
+        command = paste0("cPsyllid$",stochNodesUnique[ii]," = ", paste0("vec[", paste0("c(",paste0(grep(stochNodesUnique[ii],names(vec)),collapse=","),")"), "]"))
+        eval(parse(text=command))
+      }
+      ## Calculate posterior log likelihood
+      calculate(cPsyllid, c(stochNodes,dataNodes))
+    }, control = list(fnscale=-1, maxit=500), hessian = FALSE) # TRUE
+    pVec = opt$par
+    nimPrint("iter = ", iter)
+    print(opt)
+  }
 }
 
 
@@ -57,42 +69,136 @@ if (FALSE) { # This step takes about 1/2 hour, the output has been pasted into t
 ################################
 ## Plot the the Briere curves ##
 ################################
-if (FALSE) {
-  par(mfrow=n2mfrow(Const$nStagesDev*2))
+if (FALSE) { # TRUE
+  par(mfrow=n2mfrow(Const$nStagesDev))
   for (stage in 1:Const$nStagesDev) {
-    curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]), 0, 50, ylab="Mean", main=paste("stage",stage))
-  }
-  for (stage in 1:Const$nStagesDev) {
-    curve(briere(t=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeSD[stage],   shape=cPsyllid$shapeSD[stage]), 0, 50, ylab="SD", main=paste("stage",stage))
+    curve(stBriere(T=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]), -20, 60, ylab="E[Dev rate]", main=paste("stage",stage))
   }
 }
+
+
+if (FALSE) {
+  #####################################################################
+  ## Standard MCMC. It tends to get stuck, so APT can perform better ##
+  #####################################################################
+  mcmcConf <- configureMCMC(model=rPsyllid,
+                            monitors=stochNodes,    ## Needed for WAIC calculation
+                            monitors2=monitorNodes, ## Prefered output
+                            thin=thin, thin2=thin,
+                            enableWAIC = TRUE)
+  mcmcConf$getMonitors()
+  mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
+  mcmcConf$removeSamplers()
+  mcmcConf$addSampler(target=stochNodes, type="RW_block", control=list(scale=0.1)) # propCov=cov(previousSampScale),
+  mcmcConf
+  ##########################################
+  ## Build and compile the MCMC algorithm ##
+  ##########################################
+  mcmcR <- buildMCMC(mcmcConf)
+  mcmcC <- compileNimble(mcmcR)
+  ##################
+  ## Run the MCMC ##
+  ##################
+  nIter =  5E4
+  RunTime <- run.time(mcmcC$run(nIter, thin = thin, thin2=thin, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+  ##
+  samps <- tail(as.matrix(mcmcC$mvSamples), floor(nIter/thin)) ## Sampled parameters for T=1
+  plot(coda::as.mcmc(samps))
+  covParas = cov(samps)
+  while(any(eigen(covParas)$values <= 0)) {
+    covParas = covParas + diag(diag(covParas))
+    nimPrint("Adjusting covParas to ensure positive definite")
+  }
+}
+
+
+
 
 ########################################################################################################
 ## Configure an MCMC and add a block sampler from the nimbleAPT (adaptive parallel tempering) package ##
 ########################################################################################################
-thin = 100
-mcmcConf <- configureMCMC(model=rPsyllid, monitors=monitorNodes, ## monitors2 = "sumLogProb",
-                          thin=thin, thin2=thin) ## Sets a basic default MCMC configuration (I almost always end up adding block samplers to overcome problems/limitations with the dfault configguration)
-mcmcConf$getMonitors()
-mcmcConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
-mcmcConf$removeSamplers()
-mcmcConf$addSampler(target=stochNodes, type="RW_block_tempered", control=list(scale=0.1, # propCov=cov(previousSampScale),
-                                                                              temperPriors=TRUE))
-mcmcConf
+aptConf <- configureMCMC(model=rPsyllid,
+                         monitors=stochNodes,     ## Needed for WAIC calculation
+                         thin=thin, thin2=thin,
+                         enableWAIC = TRUE)
+aptConf$getMonitors()
+aptConf$printSamplers() ## All univariate samplers. We'll probably have strong autocorrelation in the samples
+aptConf$removeSamplers()
+aptConf$addSampler(target=stochNodes, type="RW_block_tempered", control=list(scale=0.1, temperPriors=TRUE, propCov=covParas))
+aptConf
 
-################################
-## Build and compile the MCMC ##
-################################
-aptR <- buildAPT(mcmcConf, Temps = 1:nTemps, ULT = 1000, print= TRUE) # only 4 temperatures to avoid memory issues
+####################################################
+## Build and compile the APT based MCMC algorithm ##
+####################################################
+aptR <- buildAPT(aptConf, Temps = 1:nTemps, ULT = 1000, print= TRUE) # only 4 temperatures to avoid memory issues
 aptC <- compileNimble(aptR)
 
 
-##################
-## Run the MCMC ##
-##################
-nIter =  6E4
-# nIter =  1E5
-STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+
+###############################################################################
+## Loop with short runs of APT, until mean loglik shows signs of convergence ##
+###############################################################################
+nIter            <- 3E4       ## One iteration of the loop will take approx 1 day
+TuneTemper       <- c(10, 1)  ## default value is c(10,1)
+logliks          <- rnorm(nIter, cPsyllid$calculate(), 1)
+logliks_previous <- logliks - rnorm(length(logliks),10, 1)
+iter             <- 0
+while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
+  iter <- iter+1
+  logliks_previous <- logliks
+  print(paste0("iteration nb.", iter, "within while loop. meanL = ", mean(logliks_previous)))
+  #################
+  ## Short run 1 ##
+  aptC$thinPrintTemps <- nIter / 10
+  RunTime <- run.time(aptC$run(nIter,
+                               reset          = TRUE,  ## Resets the adaptive MCMC. Let's proposal distributions change direction if required.
+                               adaptTemps     = FALSE, ## Prevents temperature ladder adaptation (to avoid volatile behaviour when counter is reset)
+                               resetTempering = TRUE,  ## Resets counter used in temperature ladder adaptation
+                               printTemps     = TRUE,  ## Will print once only
+                               tuneTemper1=TuneTemper[1], tuneTemper2=TuneTemper[2]))
+  ## Update meanL
+  nimPrint("While loop: 1st short run finished. RunTime (hours) = ", RunTime/60/60)
+  logliks = tail(aptC$logProbs, floor(nIter/thin))
+  meanL   = mean(logliks, na.rm=TRUE)
+  nimPrint("meanL = ", meanL)
+  #################
+  ## Short run 2 ##
+  aptC$thinPrintTemps <- round(nIter / 10) ## Ensures temps are only printed 10 times
+  RunTime <- run.time(aptC$run(nIter,
+                               reset          = FALSE, ## Do not reset the adaptive MCMC, let adaptation continue as it is
+                               adaptTemps     = TRUE,  ## Allows temperature ladder to adjust
+                               resetTempering = FALSE, ## Keeps the adjustments modest so avoids volatile behaviour
+                               printTemps     = TRUE,  ## Prevents verbose printing of temperature ladder updates
+                               tuneTemper1=TuneTemper[1], tuneTemper2=TuneTemper[2]))
+  ## Update meanL
+  nimPrint("While loop: 2nd short run finished. RunTime (hours) = ", RunTime/60/60)
+  logliks = tail(aptC$logProbs, floor(nIter/thin))
+  meanL   = mean(logliks, na.rm=TRUE)
+  nimPrint("meanL = ", meanL)
+  ## Calculate & print ESS
+  samples   <- tail(as.matrix(aptC$mvSamples), floor(nIter/thin)) ## Sampled parameters for T=1
+  mc        <- as.mcmc(samples)
+  ESS       <- effectiveSize(mc)
+  (ESS      <- ESS[order(ESS)])
+  nimPrint("ESS: ", ESS)
+  ## t-test for difference in means
+  nimPrint("t-test for equivalence of means")
+  print(t.test(logliks_previous, logliks, alternative="less")) # p is prob of obtaining result at least as extreme as the observed result, assuming H0 is true
+  ## Generate output from aptC
+  source(here::here("src/aptOutput.R"))
+}
+print(paste0("iteration nb.", iter, "within while loop. meanL = ", meanL))
+
+
+
+#####################
+## Long run of APT ##
+#####################
+nIterShort = nIter
+nIter = 1E5
+nimPrint("Estimated run-time (hours) = ", (RunTime/60/60) * nIter / nIterShort)
+RunTime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=FALSE, resetTempering=FALSE, adaptTemps=FALSE))
+nimPrint("Run-time (hours) = ", RunTime / 60 / 60)
 ## SDmodel==2
 #  4 temps - c(23.4)
 #  8 temps - c(
@@ -103,67 +209,7 @@ STime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=TRUE)) ## 5.7 minut
 ## SDmodel==2
 #  2 temps - 11.8 hours - 6E4 iterations
 
-####################################
-## Optional burn-in to be removed ##
-####################################
-burn = 1:3000
-# burn = 1
-
-#############################
-## Extract log-likelihoods ##
-#############################
-STime / 60 / 60
-logliks <- coda::as.mcmc(as.matrix(aptC$logProbs)[-burn,])
-#logliks <- coda::as.mcmc(logliks[!(is.na(logliks[,1])),])
-#logliks <- coda::as.mcmc(logliks[-(1:50),])
-if (FALSE)
-  plot(logliks)
-
-#####################################
-## Extract samples and save tofile ##
-#####################################
-samples <- coda::as.mcmc(as.matrix(aptC$mvSamples)[-burn,])
-# samples <- coda::as.mcmc(samples[!(is.na(samples[,1])),])
-summary(samples)
-if (FALSE)
-  plot(samples)
-
-
-
-sort(effectiveSize(samples))
-# sort(effectiveSize(samples[-(1:2500),]))
-
-## crosscorr(samples)
-## crosscorr.plot(samples)
-## sort(apply(crosscorr(samples) - diag(1, 36), 1, function(x) max(abs(x))), dec=TRUE)
-
-##########################
-## Write output to file ##
-##########################
-(fileName = paste0("APT/model", SDmodel, "_",
-                           (date() %>% strsplit(" "))[[1]][c(2,3)] %>% paste0(collapse="-") %>% paste0("_"),
-                           (date() %>% strsplit(" "))[[1]][c(4)] %>% stringr::str_replace_all(":","-"), "_",
-                           (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""),
-                   "_Temps", nTemps,
-                   ".txt"))
-write.table(as.matrix(samples), file=fileName, row.names = FALSE)
-## samples=read.table("APT/Jun10-20-00_2021_Temps8.txt", header = TRUE)
-
-write.table(as.matrix(logliks), row.names = FALSE, file=sub("\\.","_loglik.",fileName))
-
-if (TRUE) {
-  ## Cross correlation plot
-  pdf(file = sub("txt","pdf", sub("\\.","_crosscor.",fileName)), width=20, height=20)
-  crosscorr.plot(samples)
-  dev.off()
-  ## Trajectories plot
-  pdf(file = sub("txt","pdf", sub("\\.","_trajectories.",fileName)))
-  plot(samples)
-  dev.off()
-  ## Log posterior likelihood trajectories
-  pdf(file = sub("txt","pdf", sub("\\.","_trajecory-logliks.",fileName)))
-  plot(logliks)
-  dev.off()
-}
-## class(samples[-c(1:13000),])
-## crosscorr.plot(as.mcmc(samples[-c(1:13000),]))
+###############################
+## Generate output from aptC ##
+###############################
+source(here::here("src/aptOutput.R"))

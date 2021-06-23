@@ -1,6 +1,7 @@
 #####################################################################
 ## This script provides the definition of the multi-stageIPM model ##
 #####################################################################
+## install.packages(c("here", "tibble", "dplyr", "nimble", "imputeTS", "lubridate", "coda")
 
 ## source(here::here("src/modelDefinition.R"))
 
@@ -8,20 +9,20 @@
 ## as.POSIXct(as.integer(psyllids[[1]][1,1]), origin = "1970-01-01") == psyllids[[1]][1,1]
 
 # rm(list=ls())
-library(here)
-library(tibble)
-library(dplyr)
-library(nimble)
-library(nimbleAPT)
-library(nimbleTempDev)
-library(imputeTS)
-library(lubridate)
-library(coda)
+library(here)          ## for locating a suitable base directory
+library(tibble)        ## for tibbles
+library(dplyr)         ## for piping %>%
+library(nimble)        ## for working with BUGS type models in R
+library(nimbleAPT)     ## for adaptive parallel tempering
+library(nimbleTempDev) ## for temperature depandant IPM
+library(imputeTS)      ## for na_kalman
+library(lubridate)     ## for dates and times
+library(coda)          ## for mcmc diagnostics
 
 baseDir = here()
 setwd(baseDir)
 load("data/data4nimble.Rdata")
-source("src/functions.R")
+## source("src/functions.R")   ## Currently not using any of these funcitons
 
 #data4
 
@@ -53,34 +54,34 @@ psyllidCode <- nimbleCode ({
     paras[stage,1:lTempVec,1] <- stBriere(T=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
     ## Standard deviation in development as a function of temperature
     if (SDmodel == 1) { # sdDev(T) = meanDev(T) * constant
-      beta0SD[stage] ~ dnorm(0, tau=1E-6)
-      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0SD[stage])
+      beta0[stage] ~ dnorm(0, tau=tauBeta0)
+      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage])
     }
     if (SDmodel == 2) { # sdDev(T) = constant, or zero (if meanDev(T)==0)
-      beta0SD[stage] ~ dnorm(0, tau=1E-6)
-      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0SD[stage])
+      beta0[stage] ~ dnorm(0, tau=tauBeta0)
+      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0[stage])
     }
     if (SDmodel == 3) { # sdDev(T) = meanDev(T) * exp(a+b*T)
-      beta0SD[stage] ~ dnorm(0, tau=1E-6)
-      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec])
+      beta0[stage] ~ dnorm(0, tau=tauBeta0)
+      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec])
     }
     if (SDmodel == 4) { # sdDev(T) = exp(a+b*T), or zero (if meanDev(T)==0)
-      beta0SD[stage] ~ dnorm(0, tau=1E-6)
-      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec])
+      beta0[stage] ~ dnorm(0, tau=tauBeta0)
+      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec])
     }
     if (SDmodel == 5) { # sdDev(T) = meanDev(T) * exp(a + b*T + c*T^2)
-      beta0SD[stage] ~ dnorm(0, tau=1E-6)
-      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      beta2SD[stage] ~ ddexp(location=0, scale=scaleBeta2SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec] + beta2SD[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
+      beta0[stage] ~ dnorm(0, tau=tauBeta0)
+      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec] + beta2[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
     }
     if (SDmodel == 6) { # sdDev(T) = exp(a + b*T + c*T^2), or zero (if meanDev(T)==0)
-      beta0SD[stage] ~ dnorm(0, tau=1E-6)
-      beta1SD[stage] ~ ddexp(location=0, scale=scaleBeta1SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      beta2SD[stage] ~ ddexp(location=0, scale=scaleBeta2SD) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0SD[stage] + beta1SD[stage]*tempVec[1:lTempVec] + beta2SD[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
+      beta0[stage] ~ dnorm(0, tau=tauBeta0)
+      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+      paras[stage,1:lTempVec,2] <- (paras[stage,1:lTempVec,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec] + beta2[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
     }
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Survival
@@ -91,10 +92,10 @@ psyllidCode <- nimbleCode ({
   }
   ## Shared parameters for standard deviation in development models
   if (SDmodel >= 3) {
-    scaleBeta1SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
+    scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
   if (SDmodel >= 5) {
-    scaleBeta2SD ~ dgamma(shape=1/nStagesDev, rate=1/2)
+    scaleBeta2 ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
   #####################
   ## Loop over trees ##
@@ -153,15 +154,17 @@ Const             = list(
   meteoTemp       = meteo$temperature,
   iMeteoTemp      = sapply(meteo$temperature, function(x) which(x == tempVec)),
   iMeteoForObsMat = iMeteoForObsMat,
-  nSteps          = nSteps
+  nSteps          = nSteps,
+  tauBeta0        = 1E-11
 )
 
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
+fileStem         = paste0("model",SDmodel, "_")
 previousMCMCfile = here("APT/Jun-18_19-38-37_2021_Temps4.txt")
-previous = read.table(previousMCMCfile, header=TRUE)
-previous = previous[-round(1:nrow(previous)/2),] # Remove 1/2 the samples as burn-in
+previous         = read.table(previousMCMCfile, header=TRUE)
+previous         = previous[-round(1:nrow(previous)/2),] # Remove 1/2 the samples as burn-in
 ##
 previousSampScale = previous
 previousSampScale[,-grep("T", colnames(previous))] = logit(previousSampScale[,-grep("T", colnames(previous))])
@@ -178,12 +181,16 @@ Inits = list(
   logit_amplitudeSD   = previous %>% select(grep("amplitudeSD",   colnames(previous))) %>% logit() %>% as.numeric(),
   logit_shapeSD       = previous %>% select(grep("shapeSD",       colnames(previous))) %>% logit() %>% as.numeric(),
   ## For SDmodel == 2
-  beta0SD  = rep(1, nStagesDev),
-  beta1SD      = rep(0, nStagesDev),
-  beta2SD      = rep(0, nStagesDev),
-  scaleBeta1SD = (1/nStagesDev) / (1/2),
-  scaleBeta2SD = (1/nStagesDev) / (1/2)
+  beta0      = rep(1, nStagesDev),
+  beta1      = rep(0, nStagesDev),
+  beta2      = rep(0, nStagesDev),
+  scaleBeta1 = (1/nStagesDev) / (1/2), # Mean = shape / rate (gamma distribution)
+  scaleBeta2 = (1/nStagesDev) / (1/2)  # Mean = shape / rate (gamma distribution)
 )
+
+
+
+
 
 
 ################
@@ -214,6 +221,9 @@ monitorNodes = rPsyllid$getParents("paras", immediateOnly = TRUE)
 ## dataNodes  = dataNodes[which(dataNodes!="sumLogProb")]
 ## stochNodes = stochNodes[which(stochNodes!="sumLogProb")]
 ## detNodes   = detNodes[which(detNodes!="sumLogProb")]
+
+stochNodesUnique = unique(sub("\\[.*","",stochNodes))
+
 
 
 #############################################################################
