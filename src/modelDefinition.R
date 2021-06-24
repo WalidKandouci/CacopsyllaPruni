@@ -44,10 +44,42 @@ if (is.element("package:imputeTS", search())) {
 }
 
 
+stBriere = nimbleFunction(
+  run = function(T     = double(1),
+                 Tmin  = double(0),
+                 Tmax  = double(0),
+                 shape = double(0),
+                 amplitude = double(0)) {
+    returnType(double(1))
+    n        = length(T)
+    result   = nimNumeric(length = n)
+    scaledT[1:n]   = (T[1:n]-Tmin) / (Tmax-Tmin) # Transform temperatures to [0,1]
+    inverseB = (2*(1-shape))/shape
+    B        = 1/inverseB
+    mode     = 2*B/(1+2*B)
+    for (i in 1:n) {
+      if (scaledT[i]<=0 | scaledT[i]>=1) {
+        result[i] <- 0
+      } else {
+        result[i] <- amplitude * (scaledT[i]^2 * (1-scaledT[i])^inverseB) / (mode^2 * (1-mode)^inverseB)
+      }
+    }
+    result[result < 0] <- 0
+    return(result[1:n])
+  }
+)
+
+
 ################################
 ## BUGS code for nimble model ##
 ################################
 psyllidCode <- nimbleCode ({
+  ##########################################
+  ## Vector of temperatures for the model ##
+  ##########################################
+  for (iTemp in 1:lTempVec) {
+    tempVec[iTemp] <- tempMin + (tempMax-tempMin) * (iTemp-1)/(lTempVec-1)
+  }
   #############################################################
   ## Development kernel at each temperature & for each stage ##
   #############################################################
@@ -57,83 +89,64 @@ psyllidCode <- nimbleCode ({
     Tmax[stage]                 ~ dunif( 20, 60) # dnorm(40,sd=20)
     logit(amplitudeMean[stage]) ~ dLogitBeta(1,1)
     logit(shapeMean[stage])     ~ dLogitBeta(1,1)
+    beta0[stage]                ~ dnorm(0, tau=tauBeta0)
+    if (SDmodel > 2) {
+      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+    }
+    if (SDmodel > 4) {
+      beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
+    }
     ## Mean development as a function of temperature
-    paras[stage,1:lTempVec,1] <- stBriere(T=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) # Mean of the development kernel
-    ## Standard deviation in development as a function of temperature
-    if (SDmodel == 1) { # sdDev(T) = meanDev(T) * constant
-      beta0[stage] ~ dnorm(0, tau=tauBeta0)
-      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage])
-    }
-    if (SDmodel == 2) { # sdDev(T) = constant, or zero (if meanDev(T)==0)
-      beta0[stage] ~ dnorm(0, tau=tauBeta0)
-      for (iTemp in 1:lTempVec) {
-        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage])
-      }
-    }
-    if (SDmodel == 3) { # sdDev(T) = meanDev(T) * exp(a+b*T)
-      beta0[stage] ~ dnorm(0, tau=tauBeta0)
-      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec])
-    }
-    if (SDmodel == 4) { # sdDev(T) = exp(a+b*T), or zero (if meanDev(T)==0)
-      beta0[stage] ~ dnorm(0, tau=tauBeta0)
-      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      for (iTemp in 1:lTempVec) {
-        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[iTemp])
-      }
-    }
-    if (SDmodel == 5) { # sdDev(T) = meanDev(T) * exp(a + b*T + c*T^2)
-      beta0[stage] ~ dnorm(0, tau=tauBeta0)
-      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec] + beta2[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
-    }
-    if (SDmodel == 6) { # sdDev(T) = exp(a + b*T + c*T^2), or zero (if meanDev(T)==0)
-      beta0[stage] ~ dnorm(0, tau=tauBeta0)
-      beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
-      for (iTemp in 1:lTempVec) {
-        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[iTemp] + beta2[stage]*tempVec[iTemp]*tempVec[iTemp])
-      }
-    }
+    paras[stage,1:lTempVec,1] <- stBriere(T=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) #
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
+      ## Within stage development at temperature tempVec[iTemp]
+      devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
       ## Survival
       paras[stage,iTemp,3] <- 1
-      ## Possibly add a parameter transformation step here ???
-      devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
+      ## Standard deviation in development as a function of temperature
+      if (SDmodel == 1) {
+        paras[stage,iTemp,2] <- paras[stage,iTemp,1] * exp(beta0[stage])
+      } else if (SDmodel == 2) {
+        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage])
+      } else if (SDmodel == 3) {
+        paras[stage,iTemp,2] <- paras[stage,iTemp,1] * exp(beta0[stage] + beta1[stage]*tempVec[iTemp])
+      } else if (SDmodel == 4) {
+        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[iTemp])
+      } else if (SDmodel == 5) {
+        paras[stage,iTemp,2] <- paras[stage,iTemp,1] * exp(beta0[stage] + beta1[stage]*tempVec[iTemp] + beta2[stage]*tempVec[iTemp]^2)
+      } else if (SDmodel == 6) {
+        paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[iTemp] + beta2[stage]*tempVec[iTemp]^2)
+      }
     }
   }
-  ## Shared parameters for standard deviation in development models
-  if (SDmodel == 3 | SDmodel == 4) {
+  ## Hyper-parameters for standard deviation of development models
+  if (SDmodel > 2) {
     scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
-  if (SDmodel == 5 | SDmodel == 6) {
-    scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+  if (SDmodel > 4) {
     scaleBeta2 ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
   #####################
   ## Loop over trees ##
   #####################
-  for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
-    # IPM projections
-    states[tree, 1, 1] <- 1
-    for (substage in 2:(nStagesDev*res+1)){
-      states[tree, 1, substage] <- 0
-    }
-    for (time in 1:nSteps[tree]) { # time = index for time-step
-      states[tree, time+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, time, 1:(nStagesDev*res+1)], devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + time - 1], 1:(res+1)])
-    }
-    # Likelihood
-    for (obs in 1:nObs[tree]) {
-      for(stage in 1:nStagesDev){
-        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)])
-      }
-      pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, (nStagesDev*res+1)]
-      psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
-    }
-  }
-  ## A proxy node for returning logProbs
-  ### sumLogProb ~ dnorm(0,1) ## dnorm(0,1) will not be used.  It just establishes sumLogProb as a stochastic node.
+  ## for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
+  ##   # IPM projections
+  ##   states[tree, 1, 1] <- 1
+  ##   for (substage in 2:(nStagesDev*res+1)){
+  ##     states[tree, 1, substage] <- 0
+  ##   }
+  ##   for (time in 1:nSteps[tree]) { # time = index for time-step
+  ##     states[tree, time+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, time, 1:(nStagesDev*res+1)], devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + time - 1], 1:(res+1)])
+  ##   }
+  ##   # Likelihood
+  ##   for (obs in 1:nObs[tree]) {
+  ##     for(stage in 1:nStagesDev){
+  ##       pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)])
+  ##     }
+  ##     pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, (nStagesDev*res+1)]
+  ##     psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
+  ##   }
+  ## }
 })
 
 ###############
@@ -154,17 +167,25 @@ for (tree in 1:nTrees){
 stagesDev = c("egg", "L1", "L2", "L3", "L4", "L5")
 stagesTot = c("egg", "L1", "L2", "L3", "L4", "L5", "imago")
 
+(res        <- 25)                ## Resolution of within-stage development
+(nTrees     <- length(psyllids))
+(nStagesDev <- length(stagesDev)) ## Number of developing stages (without imago)
+(nStagesTot <- length(stagesTot)) ## Total numer of stages (includes imago)
+(tempMin    <- min(meteo$temperature, na.rm = TRUE))
+(tempMax    <- max(meteo$temperature, na.rm = TRUE))
+(lTempVec   <- length(tempVec <- tempMin:tempMax))
+(lMeteo     <- nrow(meteo))
+
 Const             = list(
   SDmodel         = SDmodel,
-  res             = (res        <- 25),                ## Resolution of within-stage development
-  nTrees          = (nTrees     <- length(psyllids)),
-  nStagesDev      = (nStagesDev <- length(stagesDev)), ## Number of developing stages (without imago)
-  nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
-  tempMin         = (tempMin    <- min(meteo$temperature, na.rm = TRUE)),
-  tempMax         = (tempMax    <- max(meteo$temperature, na.rm = TRUE)),
-  tempVec         = (tempVec    <- tempMin:tempMax),
-  lTempVec        = (lTempVec   <- length((tempVec <- tempMin:tempMax))),
-  lMeteo          = (lMeteo     <- nrow(meteo)),
+  res             = res,
+  nTrees          = nTrees,
+  nStagesDev      = nStagesDev,
+  nStagesTot      = nStagesTot,
+  tempMin         = tempMin,
+  tempMax         = tempMax,
+  lTempVec        = lTempVec,
+  lMeteo          = lMeteo,
   meteoTemp       = meteo$temperature,
   iMeteoTemp      = sapply(meteo$temperature, function(x) which(x == tempVec)),
   iMeteoForObsMat = iMeteoForObsMat,
@@ -201,7 +222,7 @@ Inits = list(
 )
 
 if (is.element(SDmodel, c(2,4,6)))
-    Inits$beta0 = rep(-1, nStagesDev) # -2 for models 2 & 6    
+    Inits$beta0 = rep(-1, nStagesDev) # -2 for models 2 & 6
 
 
 
@@ -215,7 +236,9 @@ for (tree in 1:nTrees) {
   psyllidsTotal[tree,1:nObs[tree]]                <- rowSums(psyllidsArray[tree, 1:nObs[tree], 1:nStagesTot])
 }
 
-Data = list(psyllids = psyllidsArray, psyllidsTotal = psyllidsTotal)
+Data = list(psyllids      = psyllidsArray,
+            psyllidsTotal = psyllidsTotal,
+            tempVec       = tempVec)
 
 #####################################
 ## Build R version of nimble model ##
@@ -236,7 +259,9 @@ monitorNodes = rPsyllid$getParents("paras", immediateOnly = TRUE)
 
 stochNodesUnique = unique(sub("\\[.*","",stochNodes))
 
-
+# depNodes     = rPsyllid$getDependencies(stochNodes, self=FALSE, includeData = FALSE)
+# detNodes %>% sub(pat="\\[.*", rep="") %>% unique() %>% sort()
+# depNodes %>% sub(pat="\\[.*", rep="") %>% unique() %>% sort() # identical
 
 #############################################################################
 ## See scripts 'cpuTimeExperiment.R' and 'fitModel.R' for using this model ##
