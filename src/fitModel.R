@@ -41,17 +41,12 @@ if (UseScript) {
 ###########################
 ## Create rPsyllid model ##
 ###########################
-SDmodel = 4
 source(here::here("src/modelDefinition.R"))
 
 ##########################
 ## Compile model to C++ ##
 ##########################
 cPsyllid = compileNimble(rPsyllid)
-
-## cPsyllid$tempVec # Was becoming corrupted after simulation of detNodes due to a pointer bug in stBriere
-## rPsyllid$tempVec #
-
 
 ####################################
 ## Initialise deterministic nodes ##
@@ -66,8 +61,6 @@ system.time(simulate(cPsyllid, detNodes))
 #########################################
 # cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
 nimPrint("logProbs pre-optim = ", calculate(cPsyllid))
-calculate(cPsyllid, c(stochNodes,dataNodes))
-## calculate(cPsyllid, "sumLogProb")
 if (!is.finite(calculate(cPsyllid)))
   stop("Non-finite likelihood detected.")
 
@@ -76,7 +69,7 @@ if (!is.finite(calculate(cPsyllid)))
 ##########################################################
 nimPrint("Starting optim")
 if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into the definition of 'Inits' above
-  for (iter in 1:3) {
+  for (iter in 1:5) {
     if (iter==1) {
       command = paste0("pVec=c(", paste0("cPsyllid$",stochNodesUnique,collapse=", "),")")
       eval(parse(text=command))
