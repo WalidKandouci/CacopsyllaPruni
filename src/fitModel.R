@@ -92,7 +92,7 @@ if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into th
         eval(parse(text=command))
       }
       ## Calculate posterior log likelihood
-      calculate(cPsyllid, c(stochNodes,detNodes, dataNodes))
+      calculate(cPsyllid)
     }, control = list(fnscale=-1, maxit=500), hessian = FALSE) # TRUE
     pVec = opt$par
     nimPrint("iter = ", iter)
@@ -167,7 +167,7 @@ if (TRUE) { # FALSE
   ##################
   ## Run the MCMC ##
   ##################
-  nIter = 10 # 5E4 # 40
+  nIter = 5E4 # 40
   RunTime <- run.time(mcmcC$run(nIter, thin = thin, thin2=thin, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
   calculate(cPsyllid, c(stochNodes,dataNodes))
   ##
@@ -209,13 +209,13 @@ aptC <- compileNimble(aptR)
 ###############################################################################
 ## Loop with short runs of APT, until mean loglik shows signs of convergence ##
 ###############################################################################
-nIterDelta       <- 10 # 2E4 # 40  ## One iteration of the loop will take approx 1 day
+nIterDelta       <- 2E4 # 40  ## One iteration of the loop will take approx 1 day
 TuneTemper       <- c(10, 1)  ## default value is c(10,1)
 logliks          <- rnorm(nIter, cPsyllid$calculate(), 1)
 logliks_previous <- logliks - rnorm(length(logliks),10, 1)
 iter             <- 0
-# while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
-while( iter == 0 ) {
+while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
+# while( iter == 0 ) {
   iter <- iter+1
   nIter = nIterDelta * iter
   logliks_previous <- logliks
