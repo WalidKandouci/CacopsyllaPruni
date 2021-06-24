@@ -4,7 +4,7 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 1 # 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel = 4 # 2, 3, 4, 5 ## Identifywhich model to use for SD
 nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin    = 10
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
@@ -18,7 +18,7 @@ if (length(CA)==0) {
     UseScript <- TRUE
 }
 
-if (UseScript) { 
+if (UseScript) {
     print(CA)
     print(SDmodel <- as.integer(CA)[1])
     print(qsubID  <- as.integer(CA)[2])
@@ -41,12 +41,17 @@ if (UseScript) {
 ###########################
 ## Create rPsyllid model ##
 ###########################
+SDmodel = 4
 source(here::here("src/modelDefinition.R"))
 
 ##########################
 ## Compile model to C++ ##
 ##########################
 cPsyllid = compileNimble(rPsyllid)
+
+## cPsyllid$tempVec # Was becoming corrupted after simulation of detNodes due to a pointer bug in stBriere
+## rPsyllid$tempVec #
+
 
 ####################################
 ## Initialise deterministic nodes ##
@@ -60,6 +65,7 @@ system.time(simulate(cPsyllid, detNodes))
 ## Test that the log-likelihood is finite
 #########################################
 # cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
+calculate(cPsyllid)
 calculate(cPsyllid, c(stochNodes,dataNodes))
 ## calculate(cPsyllid, "sumLogProb")
 if (!is.finite(calculate(cPsyllid)))
@@ -86,7 +92,7 @@ if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into th
         eval(parse(text=command))
       }
       ## Calculate posterior log likelihood
-      calculate(cPsyllid, c(stochNodes,dataNodes))
+      calculate(cPsyllid)
     }, control = list(fnscale=-1, maxit=500), hessian = FALSE) # TRUE
     pVec = opt$par
     nimPrint("iter = ", iter)
@@ -94,13 +100,38 @@ if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into th
   }
 }
 
+
+cPsyllid$tempVec
+rPsyllid$tempVec
+
+
+
 ## Ensure model is parameterised using optim optput
 for (ii in 1:length(stochNodesUnique)) {
     command = paste0("cPsyllid$",stochNodesUnique[ii]," = ", paste0("pVec[", paste0("c(",paste0(grep(stochNodesUnique[ii],names(pVec)),collapse=","),")"), "]"))
     print(command)
     eval(parse(text=command))
 }
-nimPrint("logProbs following optim = ", calculate(cPsyllid, c(stochNodes,dataNodes)))
+cPsyllid$simulate(detNodes,includeData = FALSE)
+nimPrint("logProbs following optim = ", calculate(cPsyllid, c(stochNodes,detNodes,dataNodes)))
+
+## for (ii in 1:length(stochNodesUnique)) {
+##   command = paste0("print(cPsyllid$",stochNodesUnique[ii],")")
+##   print(stochNodesUnique[ii])
+##   eval(parse(text=command))
+##   command = paste0("print(cPsyllid$calculate(\"",stochNodesUnique[ii],"\"))")
+##   eval(parse(text=command))
+## }
+## cPsyllid$simulate("paras")
+## cPsyllid$paras
+## cPsyllid$devKernel
+## ## THE BUG - Mean and SD for stage 5 too close to zero. Why ???
+## cPsyllid$paras[,,1:2]
+## deleteme =
+##   stage = 1
+##   stBriere(T=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeMean[stage], amplitude=cPsyllid$amplitudeMean[stage]) # Mean of the development kernel
+## cPsyllid$simulate("paras[5,,1]")
+## cPsyllid$paras[5,,1]
 
 
 ################################
@@ -118,7 +149,7 @@ if (TRUE) { # FALSE
   #####################################################################
   ## Standard MCMC. It tends to get stuck, so APT can perform better ##
   #####################################################################
-  mcmcConf <- configureMCMC(model=rPsyllid,
+  mcmcConf <- configureMCMC(model=cPsyllid,
                             monitors=stochNodes,    ## Needed for WAIC calculation
                             monitors2=monitorNodes, ## Prefered output
                             thin=thin, thin2=thin,
@@ -136,11 +167,12 @@ if (TRUE) { # FALSE
   ##################
   ## Run the MCMC ##
   ##################
-  nIter = 5E4 # 40 
+  nIter = 5E4 # 40
   RunTime <- run.time(mcmcC$run(nIter, thin = thin, thin2=thin, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
+  calculate(cPsyllid, c(stochNodes,dataNodes))
   ##
   samps <- tail(as.matrix(mcmcC$mvSamples), floor(nIter/thin)) ## Sampled parameters for T=1
-  if (FALSE) 
+  if (FALSE)
     plot(coda::as.mcmc(samps))
   covParas = cov(samps)
   if(any(eigen(covParas)$values <= 0)) {
@@ -150,7 +182,7 @@ if (TRUE) { # FALSE
   if(any(eigen(covParas)$values <= 0)) {
     covParas = "identity"
     nimPrint("Setting covParas to identity")
-  }  
+  }
 }
 
 
@@ -183,9 +215,9 @@ logliks          <- rnorm(nIter, cPsyllid$calculate(), 1)
 logliks_previous <- logliks - rnorm(length(logliks),10, 1)
 iter             <- 0
 while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
-## while( iter == 0 ) {
+# while( iter == 0 ) {
   iter <- iter+1
-  nIter = nIterDelta * iter 
+  nIter = nIterDelta * iter
   logliks_previous <- logliks
   print(paste0("iteration nb.", iter, "within while loop. meanL = ", mean(logliks_previous)))
   #################
@@ -236,7 +268,7 @@ print(paste0("iteration nb.", iter, "within while loop. meanL = ", meanL))
 ## Long run of APT ##
 #####################
 nIterShort = nIter
-nIter = 1E5 # 60  
+nIter = 1E5 # 60
 nimPrint("Estimated run-time (hours) = ", (RunTime/60/60) * nIter / nIterShort)
 RunTime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=FALSE, resetTempering=FALSE, adaptTemps=FALSE))
 nimPrint("Run-time (hours) = ", RunTime / 60 / 60)
