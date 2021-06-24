@@ -44,42 +44,10 @@ if (is.element("package:imputeTS", search())) {
 }
 
 
-stBriere = nimbleFunction(
-  run = function(T     = double(1),
-                 Tmin  = double(0),
-                 Tmax  = double(0),
-                 shape = double(0),
-                 amplitude = double(0)) {
-    returnType(double(1))
-    n        = length(T)
-    result   = nimNumeric(length = n)
-    scaledT[1:n]   = (T[1:n]-Tmin) / (Tmax-Tmin) # Transform temperatures to [0,1]
-    inverseB = (2*(1-shape))/shape
-    B        = 1/inverseB
-    mode     = 2*B/(1+2*B)
-    for (i in 1:n) {
-      if (scaledT[i]<=0 | scaledT[i]>=1) {
-        result[i] <- 0
-      } else {
-        result[i] <- amplitude * (scaledT[i]^2 * (1-scaledT[i])^inverseB) / (mode^2 * (1-mode)^inverseB)
-      }
-    }
-    result[result < 0] <- 0
-    return(result[1:n])
-  }
-)
-
-
 ################################
 ## BUGS code for nimble model ##
 ################################
 psyllidCode <- nimbleCode ({
-  ##########################################
-  ## Vector of temperatures for the model ##
-  ##########################################
-  for (iTemp in 1:lTempVec) {
-    tempVec[iTemp] <- tempMin + (tempMax-tempMin) * (iTemp-1)/(lTempVec-1)
-  }
   #############################################################
   ## Development kernel at each temperature & for each stage ##
   #############################################################
@@ -129,24 +97,24 @@ psyllidCode <- nimbleCode ({
   #####################
   ## Loop over trees ##
   #####################
-  ## for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
-  ##   # IPM projections
-  ##   states[tree, 1, 1] <- 1
-  ##   for (substage in 2:(nStagesDev*res+1)){
-  ##     states[tree, 1, substage] <- 0
-  ##   }
-  ##   for (time in 1:nSteps[tree]) { # time = index for time-step
-  ##     states[tree, time+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, time, 1:(nStagesDev*res+1)], devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + time - 1], 1:(res+1)])
-  ##   }
-  ##   # Likelihood
-  ##   for (obs in 1:nObs[tree]) {
-  ##     for(stage in 1:nStagesDev){
-  ##       pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)])
-  ##     }
-  ##     pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, (nStagesDev*res+1)]
-  ##     psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
-  ##   }
-  ## }
+  for (tree in 1:nTrees) { # Adding multiple trees means running the IPM seperately for each tree (due to different start dates)
+    # IPM projections
+    states[tree, 1, 1] <- 1
+    for (substage in 2:(nStagesDev*res+1)){
+      states[tree, 1, substage] <- 0
+    }
+    for (time in 1:nSteps[tree]) { # time = index for time-step
+      states[tree, time+1, 1:(nStagesDev*res+1)] <- sparseTWstep(states[tree, time, 1:(nStagesDev*res+1)], devKernel[1:nStagesDev, iMeteoTemp[iMeteoForObsMat[tree,1] + time - 1], 1:(res+1)])
+    }
+    # Likelihood
+    for (obs in 1:nObs[tree]) {
+      for(stage in 1:nStagesDev){
+        pStage[tree, obs, stage]  <- sum(states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, ((stage-1)*res+1):(stage*res)])
+      }
+      pStage[tree, obs, nStagesTot] <- states[tree, iMeteoForObsMat[tree,obs] - iMeteoForObsMat[tree,1] + 1, (nStagesDev*res+1)]
+      psyllids[tree, obs, 1:nStagesTot] ~ dmultinom(prob = pStage[tree, obs, 1:nStagesTot], size = psyllidsTotal[tree, obs])
+    }
+  }
 })
 
 ###############
@@ -173,7 +141,8 @@ stagesTot = c("egg", "L1", "L2", "L3", "L4", "L5", "imago")
 (nStagesTot <- length(stagesTot)) ## Total numer of stages (includes imago)
 (tempMin    <- min(meteo$temperature, na.rm = TRUE))
 (tempMax    <- max(meteo$temperature, na.rm = TRUE))
-(lTempVec   <- length(tempVec <- tempMin:tempMax))
+(tempVec    <- tempMin:tempMax)
+(lTempVec   <- length(tempVec))
 (lMeteo     <- nrow(meteo))
 
 Const             = list(
@@ -182,8 +151,6 @@ Const             = list(
   nTrees          = nTrees,
   nStagesDev      = nStagesDev,
   nStagesTot      = nStagesTot,
-  tempMin         = tempMin,
-  tempMax         = tempMax,
   lTempVec        = lTempVec,
   lMeteo          = lMeteo,
   meteoTemp       = meteo$temperature,

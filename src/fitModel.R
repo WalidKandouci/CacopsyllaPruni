@@ -49,8 +49,8 @@ source(here::here("src/modelDefinition.R"))
 ##########################
 cPsyllid = compileNimble(rPsyllid)
 
-cPsyllid$tempVec # Becomes corrupted after simulation of detNodes
-rPsyllid$tempVec # It's stBriere that corrupts the values
+## cPsyllid$tempVec # Was becoming corrupted after simulation of detNodes due to a pointer bug in stBriere
+## rPsyllid$tempVec #
 
 
 ####################################
