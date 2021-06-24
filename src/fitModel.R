@@ -65,7 +65,7 @@ system.time(simulate(cPsyllid, detNodes))
 ## Test that the log-likelihood is finite
 #########################################
 # cPsyllid$tempVec = tempVec ## For some reason this vector gets set to silly values, so here we re-initialise
-calculate(cPsyllid)
+nimPrint("logProbs pre-optim = ", calculate(cPsyllid))
 calculate(cPsyllid, c(stochNodes,dataNodes))
 ## calculate(cPsyllid, "sumLogProb")
 if (!is.finite(calculate(cPsyllid)))
@@ -100,12 +100,6 @@ if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into th
   }
 }
 
-
-cPsyllid$tempVec
-rPsyllid$tempVec
-
-
-
 ## Ensure model is parameterised using optim optput
 for (ii in 1:length(stochNodesUnique)) {
     command = paste0("cPsyllid$",stochNodesUnique[ii]," = ", paste0("pVec[", paste0("c(",paste0(grep(stochNodesUnique[ii],names(pVec)),collapse=","),")"), "]"))
@@ -114,24 +108,6 @@ for (ii in 1:length(stochNodesUnique)) {
 }
 cPsyllid$simulate(detNodes,includeData = FALSE)
 nimPrint("logProbs following optim = ", calculate(cPsyllid, c(stochNodes,detNodes,dataNodes)))
-
-## for (ii in 1:length(stochNodesUnique)) {
-##   command = paste0("print(cPsyllid$",stochNodesUnique[ii],")")
-##   print(stochNodesUnique[ii])
-##   eval(parse(text=command))
-##   command = paste0("print(cPsyllid$calculate(\"",stochNodesUnique[ii],"\"))")
-##   eval(parse(text=command))
-## }
-## cPsyllid$simulate("paras")
-## cPsyllid$paras
-## cPsyllid$devKernel
-## ## THE BUG - Mean and SD for stage 5 too close to zero. Why ???
-## cPsyllid$paras[,,1:2]
-## deleteme =
-##   stage = 1
-##   stBriere(T=tempVec[1:lTempVec], Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], shape=cPsyllid$shapeMean[stage], amplitude=cPsyllid$amplitudeMean[stage]) # Mean of the development kernel
-## cPsyllid$simulate("paras[5,,1]")
-## cPsyllid$paras[5,,1]
 
 
 ################################
