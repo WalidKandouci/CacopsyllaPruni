@@ -185,8 +185,8 @@ Inits = list(
   beta0      = rep(1, nStagesDev),     # 1 for models 1 3 5
   beta1      = rep(1E-11, nStagesDev),
   beta2      = rep(1E-11, nStagesDev),
-  scaleBeta1 = (1/nStagesDev) / (1/2), # Mean = shape / rate (gamma distribution)
-  scaleBeta2 = (1/nStagesDev) / (1/2)  # Mean = shape / rate (gamma distribution)
+  log_scaleBeta1 = log((1/nStagesDev) / (1/2)), # Mean = shape / rate (gamma distribution)
+  log_scaleBeta2 = log((1/nStagesDev) / (1/2))  # Mean = shape / rate (gamma distribution)
 )
 
 if (is.element(SDmodel, c(2,4,6)))
