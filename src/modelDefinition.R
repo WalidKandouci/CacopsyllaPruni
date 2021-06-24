@@ -90,10 +90,10 @@ psyllidCode <- nimbleCode ({
   ## Hyper-parameters for standard deviation of development models
   if (SDmodel > 2) {
     ## Add a dLogGamma distribution to nimbleTempDev or nimbleAPT
-    scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+    log(scaleBeta1) ~ dLogGamma(shape=1/nStagesDev, scale=2)
   }
   if (SDmodel > 4) {
-    scaleBeta2 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+    log(scaleBeta2) ~ dLogGamma(shape=1/nStagesDev, scale=2)
   }
   #####################
   ## Loop over trees ##
