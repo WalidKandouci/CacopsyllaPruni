@@ -68,6 +68,7 @@ if (!is.finite(calculate(cPsyllid)))
 ##########################################################
 ## Optim for identifing better initial parameter values ##
 ##########################################################
+nimPrint("Starting optim")
 if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into the definition of 'Inits' above
   for (iter in 1:3) {
     if (iter==1) {
@@ -92,6 +93,14 @@ if (TRUE) { # This step takes about 1/2 hour, the output has been pasted into th
     print(opt)
   }
 }
+
+## Ensure model is parameterised using optim optput
+for (ii in 1:length(stochNodesUnique)) {
+    command = paste0("cPsyllid$",stochNodesUnique[ii]," = ", paste0("pVec[", paste0("c(",paste0(grep(stochNodesUnique[ii],names(pVec)),collapse=","),")"), "]"))
+    print(command)
+    eval(parse(text=command))
+}
+nimPrint("logProbs following optim = ", calculate(cPsyllid, c(stochNodes,dataNodes)))
 
 
 ################################
@@ -127,7 +136,7 @@ if (TRUE) { # FALSE
   ##################
   ## Run the MCMC ##
   ##################
-  nIter = 40 # 5E4
+  nIter = 5E4 # 40 
   RunTime <- run.time(mcmcC$run(nIter, thin = thin, thin2=thin, reset=TRUE)) ## 5.7 minutes for 1000 iterations -> we can do 100000 iterations over night, or 1E6 iterations in 5 days
   ##
   samps <- tail(as.matrix(mcmcC$mvSamples), floor(nIter/thin)) ## Sampled parameters for T=1
@@ -168,14 +177,15 @@ aptC <- compileNimble(aptR)
 ###############################################################################
 ## Loop with short runs of APT, until mean loglik shows signs of convergence ##
 ###############################################################################
-nIter            <- 40 # 3E4       ## One iteration of the loop will take approx 1 day
+nIterDelta       <- 2E4 # 40  ## One iteration of the loop will take approx 1 day
 TuneTemper       <- c(10, 1)  ## default value is c(10,1)
 logliks          <- rnorm(nIter, cPsyllid$calculate(), 1)
 logliks_previous <- logliks - rnorm(length(logliks),10, 1)
 iter             <- 0
-#### while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
-while( iter == 0 ) {
+while( t.test(logliks_previous, logliks, alternative="less")$p.value < 0.05 ) {
+## while( iter == 0 ) {
   iter <- iter+1
+  nIter = nIterDelta * iter 
   logliks_previous <- logliks
   print(paste0("iteration nb.", iter, "within while loop. meanL = ", mean(logliks_previous)))
   #################
@@ -226,7 +236,7 @@ print(paste0("iteration nb.", iter, "within while loop. meanL = ", meanL))
 ## Long run of APT ##
 #####################
 nIterShort = nIter
-nIter = 60 # 1E5
+nIter = 1E5 # 60  
 nimPrint("Estimated run-time (hours) = ", (RunTime/60/60) * nIter / nIterShort)
 RunTime <- run.time(aptC$run(nIter, thin = 10, thin2=10, reset=FALSE, resetTempering=FALSE, adaptTemps=FALSE))
 nimPrint("Run-time (hours) = ", RunTime / 60 / 60)

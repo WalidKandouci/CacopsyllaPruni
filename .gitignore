@@ -39,5 +39,5 @@ vignettes/*.pdf
 .Renviron
 
 # Output and error files produced by Migale
-*.sh.e*
-*.sh.o*
+migale/model*\.e*
+migale/model*\.o*

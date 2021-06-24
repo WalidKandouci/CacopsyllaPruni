@@ -104,10 +104,11 @@ psyllidCode <- nimbleCode ({
     }
   }
   ## Shared parameters for standard deviation in development models
-  if (SDmodel >= 3) {
+  if (SDmodel == 3 | SDmodel == 4) {
     scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
-  if (SDmodel >= 5) {
+  if (SDmodel == 5 | SDmodel == 6) {
+    scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
     scaleBeta2 ~ dgamma(shape=1/nStagesDev, rate=1/2)
   }
   #####################
@@ -192,15 +193,15 @@ Inits = list(
   logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% logit() %>% as.numeric(),
   logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% logit() %>% as.numeric(),
   ## For SDmodel == 2
-  beta0      = rep(1, nStagesDev),
-  beta1      = rep(0, nStagesDev),
-  beta2      = rep(0, nStagesDev),
+  beta0      = rep(1, nStagesDev),     # 1 for models 1 3 5
+  beta1      = rep(1E-11, nStagesDev),
+  beta2      = rep(1E-11, nStagesDev),
   scaleBeta1 = (1/nStagesDev) / (1/2), # Mean = shape / rate (gamma distribution)
   scaleBeta2 = (1/nStagesDev) / (1/2)  # Mean = shape / rate (gamma distribution)
 )
 
-
-
+if (is.element(SDmodel, c(2,4,6)))
+    Inits$beta0 = rep(-1, nStagesDev) # -2 for models 2 & 6    
 
 
 

@@ -8,11 +8,13 @@
 #############################
 logliks = tail(aptC$logProbs, floor(nIter/thin))
 logliks = logliks[!is.na(logliks)] ## It's unlikely, but just in case the first row gives NA
-logliks <- coda::as.mcmc(logliks)
+logliks = coda::as.mcmc(logliks)
 #####################################
 ## Extract samples and save tofile ##
 #####################################
-samples <- coda::as.mcmc(as.matrix(aptC$mvSamples))
+samples = as.matrix(aptC$mvSamples)
+samples = tail(samples, floor(nIter/thin))
+samples = coda::as.mcmc(samples)
 ##########################
 ## Write output to file ##
 ##########################
@@ -44,3 +46,9 @@ if (TRUE) {
 }
 ## class(samples[-c(1:13000),])
 ## crosscorr.plot(as.mcmc(samples[-c(1:13000),]))
+
+#############################################
+## Widely Applicable Information Criterion ##
+#############################################
+waic = aptC$calculateWAIC()
+write.table(waic, file=sub("\\.","_waic.",fileName), row.names = FALSE, col.names="waic")
