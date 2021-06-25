@@ -15,11 +15,14 @@ logliks = coda::as.mcmc(logliks)
 samples = as.matrix(aptC$mvSamples)
 samples = tail(samples, floor(nIter/thin))
 samples = coda::as.mcmc(samples)
+
 ##########################
 ## Write output to file ##
 ##########################
 (fileName = paste0(
-  "APT/model", SDmodel, "_", qsubID, "_", 
+  ## "MCMC/model",
+  "APT/model",
+  SDmodel, "_", qsubID, "_",
   (date() %>% strsplit(" "))[[1]][c(2,3)] %>% paste0(collapse="-") %>% paste0("_"),
   (date() %>% strsplit(" "))[[1]][c(4)] %>% stringr::str_replace_all(":","-"), "_",
   (date() %>% strsplit(" "))[[1]][5] %>% substr(1,5) %>% stringr::str_replace(":",""),
@@ -28,21 +31,29 @@ write.table(as.matrix(samples), file=fileName, row.names = FALSE)
 write.table(as.matrix(logliks), row.names = FALSE, file=sub("\\.","_loglik.",fileName))
 if (TRUE) {
   ## Cross correlation plot
-  pdf(file = sub("txt","pdf", sub("\\.","_crosscor.",fileName)), width=20, height=20)
-  crosscorr.plot(samples)
-  dev.off()
+  try({
+    pdf(file = sub("txt","pdf", sub("\\.","_crosscor.",fileName)), width=20, height=20)
+    crosscorr.plot(samples)
+    dev.off()
+  })
   ## Trajectories plot
-  pdf(file = sub("txt","pdf", sub("\\.","_trajectories.",fileName)))
-  plot(samples)
-  dev.off()
+  try({
+    pdf(file = sub("txt","pdf", sub("\\.","_trajectories.",fileName)))
+    plot(samples)
+    dev.off()
+  })
   ## Log posterior likelihood trajectories
-  pdf(file = sub("txt","pdf", sub("\\.","_trajecory-logliks.",fileName)))
-  plot(logliks)
-  dev.off()
+  try({
+    pdf(file = sub("txt","pdf", sub("\\.","_trajecory-logliks.",fileName)))
+    plot(logliks)
+    dev.off()
+  })
   ## Temperature trajectories
-  pdf(file = sub("txt","pdf", sub("\\.","_APTtemp-trajecories.",fileName)))
-  plotTempTraj(aptC)
-  dev.off()
+  try({
+    pdf(file = sub("txt","pdf", sub("\\.","_APTtemp-trajecories.",fileName)))
+    plotTempTraj(aptC)
+    dev.off()
+  })
 }
 ## class(samples[-c(1:13000),])
 ## crosscorr.plot(as.mcmc(samples[-c(1:13000),]))
