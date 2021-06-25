@@ -64,31 +64,31 @@ psyllidCode <- nimbleCode ({
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage])
     }
-    if (SDmodel == 2) { # sdDev(T) = constant, or zero (if meanDev(T)==0)
+    else if (SDmodel == 2) { # sdDev(T) = constant, or zero (if meanDev(T)==0)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       for (iTemp in 1:lTempVec) {
         paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage])
       }
     }
-    if (SDmodel == 3) { # sdDev(T) = meanDev(T) * exp(a+b*T)
+    else if (SDmodel == 3) { # sdDev(T) = meanDev(T) * exp(a+b*T)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
       paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec])
     }
-    if (SDmodel == 4) { # sdDev(T) = exp(a+b*T), or zero (if meanDev(T)==0)
+    else if (SDmodel == 4) { # sdDev(T) = exp(a+b*T), or zero (if meanDev(T)==0)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
       for (iTemp in 1:lTempVec) {
         paras[stage,iTemp,2] <- (paras[stage,iTemp,1] > 0) * exp(beta0[stage] + beta1[stage]*tempVec[iTemp])
       }
     }
-    if (SDmodel == 5) { # sdDev(T) = meanDev(T) * exp(a + b*T + c*T^2)
+    else if (SDmodel == 5) { # sdDev(T) = meanDev(T) * exp(a + b*T + c*T^2)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
       beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
       paras[stage,1:lTempVec,2] <- paras[stage,1:lTempVec,1] * exp(beta0[stage] + beta1[stage]*tempVec[1:lTempVec] + beta2[stage]*tempVec[1:lTempVec]*tempVec[1:lTempVec])
     }
-    if (SDmodel == 6) { # sdDev(T) = exp(a + b*T + c*T^2), or zero (if meanDev(T)==0)
+    else if (SDmodel == 6) { # sdDev(T) = exp(a + b*T + c*T^2), or zero (if meanDev(T)==0)
       beta0[stage] ~ dnorm(0, tau=tauBeta0)
       beta1[stage] ~ ddexp(location=0, scale=scaleBeta1) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
       beta2[stage] ~ ddexp(location=0, scale=scaleBeta2) ## Constrained version of Bhattacharya's "Dirichlet–Laplace Priors for Optimal Shrinkage"
@@ -104,13 +104,13 @@ psyllidCode <- nimbleCode ({
     }
   }
   ## Shared parameters for standard deviation in development models
-  if (SDmodel == 3 | SDmodel == 4) {
-    scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
-  }
-  if (SDmodel == 5 | SDmodel == 6) {
-    scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
-    scaleBeta2 ~ dgamma(shape=1/nStagesDev, rate=1/2)
-  }
+  #if (SDmodel == 3 | SDmodel == 4) {
+  #  scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+  #}
+  #else if (SDmodel == 5 | SDmodel == 6) {
+  #  scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+  #  scaleBeta2 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+  #}
   #####################
   ## Loop over trees ##
   #####################
@@ -156,7 +156,7 @@ stagesTot = c("egg", "L1", "L2", "L3", "L4", "L5", "imago")
 
 Const             = list(
   SDmodel         = SDmodel,
-  res             = (res        <- 25),                ## Resolution of within-stage development
+  res             = (res        <- 4),                ## Resolution of within-stage development
   nTrees          = (nTrees     <- length(psyllids)),
   nStagesDev      = (nStagesDev <- length(stagesDev)), ## Number of developing stages (without imago)
   nStagesTot      = (nStagesTot <- length(stagesTot)), ## Total numer of stages (includes imago)
