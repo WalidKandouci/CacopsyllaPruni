@@ -53,8 +53,8 @@ psyllidCode <- nimbleCode ({
   #############################################################
   for (stage in 1:nStagesDev) { # iStag = index for {, L1, L2, L3, L4, L5, imago}
     ## Priors
-    Tmin[stage]                 ~ dunif(-20, 20) # dnorm(0, sd=20)
-    Tmax[stage]                 ~ dunif( 20, 60) # dnorm(40,sd=20)
+    Tmin[stage]                 ~ dunif(-40, 20) # dnorm(0, sd=20)
+    Tmax[stage]                 ~ dunif( 20, 80) # dnorm(40,sd=20)
     logit(amplitudeMean[stage]) ~ dLogitBeta(1,1)
     logit(shapeMean[stage])     ~ dLogitBeta(1,1)
     beta0[stage]                ~ dnorm(0, tau=tauBeta0)
@@ -89,10 +89,11 @@ psyllidCode <- nimbleCode ({
   }
   ## Hyper-parameters for standard deviation of development models
   if (SDmodel > 2) {
-    scaleBeta1 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+    ## Add a dLogGamma distribution to nimbleTempDev or nimbleAPT
+    log(scaleBeta1) ~ dLogGamma(shape=1/nStagesDev, scale=2)
   }
   if (SDmodel > 4) {
-    scaleBeta2 ~ dgamma(shape=1/nStagesDev, rate=1/2)
+    log(scaleBeta2) ~ dLogGamma(shape=1/nStagesDev, scale=2)
   }
   #####################
   ## Loop over trees ##
@@ -184,8 +185,8 @@ Inits = list(
   beta0      = rep(1, nStagesDev),     # 1 for models 1 3 5
   beta1      = rep(1E-11, nStagesDev),
   beta2      = rep(1E-11, nStagesDev),
-  scaleBeta1 = (1/nStagesDev) / (1/2), # Mean = shape / rate (gamma distribution)
-  scaleBeta2 = (1/nStagesDev) / (1/2)  # Mean = shape / rate (gamma distribution)
+  log_scaleBeta1 = log((1/nStagesDev) / (1/2)), # Mean = shape / rate (gamma distribution)
+  log_scaleBeta2 = log((1/nStagesDev) / (1/2))  # Mean = shape / rate (gamma distribution)
 )
 
 if (is.element(SDmodel, c(2,4,6)))
