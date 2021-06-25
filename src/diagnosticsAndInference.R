@@ -3,7 +3,49 @@
 library(here)
 library(dplyr)
 library(nimbleTempDev)
+
+########################
+## Set some constants ##
+########################
+SDmodel = 1 # 2, 3, 4, 5 ## Identifywhich model to use for SD
+nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
+thin    = 10
+setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
+
+## ###########################################
+## Take arguments from script, if available ##
+CA <- commandArgs(TRUE)
+if (length(CA)==0) {
+  UseScript <- FALSE
+} else {
+  UseScript <- TRUE
+}
+
+if (UseScript) { 
+  print(CA)
+  print(SDmodel <- as.integer(CA)[1])
+  print(qsubID  <- as.integer(CA)[2])
+  ## Ensure R can find nimble
+  library(dplyr)
+  library(here)
+  Rlibs = here() %>% sub(pattern="work",replacement="save") %>% sub(pattern="CacopsyllaPruni",replacement="R")
+  Rdirs = Rlibs %>% dir()
+  x86dir = Rdirs[grep("x86",Rdirs)]
+  libPath = paste0(Rlibs,"/",x86dir,"/4.0")
+  .libPaths(new=libPath)
+  ## .libPaths()
+} else {
+  qsubID <- 123
+}
+
+###########################
+## Create rPsyllid model ##
+###########################
 source(here::here("src/modelDefinition.R"))
+
+##########################
+## Compile model to C++ ##
+##########################
 cPsyllid = compileNimble(rPsyllid)
 
 

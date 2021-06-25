@@ -102,18 +102,6 @@ for (ii in 1:length(stochNodesUnique)) {
 cPsyllid$simulate(detNodes,includeData = FALSE)
 nimPrint("logProbs following optim = ", calculate(cPsyllid, c(stochNodes,detNodes,dataNodes)))
 
-
-################################
-## Plot the the Briere curves ##
-################################
-if (FALSE) { # TRUE
-  par(mfrow=n2mfrow(Const$nStagesDev))
-  for (stage in 1:Const$nStagesDev) {
-    curve(stBriere(T=x, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]), -20, 60, ylab="E[Dev rate]", main=paste("stage",stage))
-  }
-}
-
-
 if (TRUE) { # FALSE
   #####################################################################
   ## Standard MCMC. It tends to get stuck, so APT can perform better ##
