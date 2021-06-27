@@ -61,5 +61,8 @@ if (TRUE) {
 #############################################
 ## Widely Applicable Information Criterion ##
 #############################################
+nimPrint("Calculating WAIC")
 waic = aptC$calculateWAIC()
 write.table(waic, file=sub("\\.","_waic.",fileName), row.names = FALSE, col.names="waic")
+
+nimPrint("WAIC = ", waic)
