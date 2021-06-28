@@ -226,6 +226,7 @@ monitorNodes = rPsyllid$getParents("paras", immediateOnly = TRUE)
 ## detNodes   = detNodes[which(detNodes!="sumLogProb")]
 
 stochNodesUnique = unique(sub("\\[.*","",stochNodes))
+detNodesUnique   = unique(sub("\\[.*","",detNodes))
 
 # depNodes     = rPsyllid$getDependencies(stochNodes, self=FALSE, includeData = FALSE)
 # detNodes %>% sub(pat="\\[.*", rep="") %>% unique() %>% sort()
