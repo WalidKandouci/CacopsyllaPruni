@@ -198,15 +198,45 @@ if (FALSE) { # TRUE
 
 ################################################################################
 ################################################################################
-###############
-## Fix model ##
-###############
+# Fix model
 SDmodel=1 #2,3,4,5,6
-###############
-## Load data ##
-###############
-# We start with model 1 for example
-model1 <- read.csv("~/GitHub/CacopsyllaPruni/APT/model1_3636147_Jun-27_15-31-52_2021_Temps4.txt", sep="")
+
+# Load data 
+APTresults <- read.csv("~/GitHub/CacopsyllaPruni/APT/model6_3636152_Jun-27_14-57-34_2021_Temps4.txt", sep="")
+
+# Plot
+# library(resample)
+APTresults_mean <- colMeans(APTresults)
+APTresults_sd   <- colStdevs(APTresults)
 
 
 
+curve(stBriere(x,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
+      -10,60, n=1001)
+
+
+stBriere(-60:60,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1]))
+         
+
+polygon(
+  x = c(ttemp, rev(ttemp)),
+  y = c(stBriere(x,Tmin=(mean(APTresults$Tmax.1.)-sd(APTresults$Tmax.1.)),Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
+        rev(quant[3, ])),
+  col = adjustcolor("red", alpha.f = 0.25),
+  border = NA
+)
+
+#############
+## To plot ##
+#############
+curve(stBriere(x,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
+      -50,50, n=1001, ylim = c(0,1),
+      xlab = "t", ylab = "Dev", type = "n")
+mcmcBriere <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-50:50))
+
+for (i in 1: dim(APTresults)[1]){
+  mcmcBriere[1,] <- stBriere(-50:50,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1]))
+  #curve(stBriere(x,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
+  #      -50,50, n=1001, ylim = c(0,1),
+  #     xlab = "t", ylab = "Dev", add = T)
+}
