@@ -229,7 +229,6 @@ polygon(
 ## To plot ##
 #############
 library(matrixStats)  # for the sdMeans function
-
 APTresults <- read.csv("C:/Users/Walid/Desktop/model6_3636152_Jul-_3_1934_Temps4.txt", sep="")
 
 mcmcBriere_Oeuf <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
@@ -243,37 +242,37 @@ for (i in 1: dim(APTresults)[1]){
   mcmcBriere_Oeuf[i,] <- stBriere(-80:80,
                              Tmin=APTresults$Tmin.1.[i],
                              Tmax=APTresults$Tmax.1.[i],
-                             shape=APTresults$logit_shapeMean.1.[i],
-                             amplitude=exp(APTresults$logit_amplitudeMean.1.[i]))
+                             shape=ilogit(APTresults$logit_shapeMean.1.[i]),
+                             amplitude=ilogit(APTresults$logit_amplitudeMean.1.[i]))
   mcmcBriere_L1[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.2.[i],
                                   Tmax=APTresults$Tmax.2.[i],
-                                  shape=APTresults$logit_shapeMean.2.[i],
-                                  amplitude=exp(APTresults$logit_amplitudeMean.2.[i]))
+                                  shape=ilogit(APTresults$logit_shapeMean.2.[i]),
+                                  amplitude=ilogit(APTresults$logit_amplitudeMean.2.[i]))
   mcmcBriere_L2[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.3.[i],
                                   Tmax=APTresults$Tmax.3.[i],
-                                  shape=APTresults$logit_shapeMean.3.[i],
-                                  amplitude=exp(APTresults$logit_amplitudeMean.3.[i]))
+                                  shape=ilogit(APTresults$logit_shapeMean.3.[i]),
+                                  amplitude=ilogit(APTresults$logit_amplitudeMean.3.[i]))
   mcmcBriere_L3[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.4.[i],
                                   Tmax=APTresults$Tmax.4.[i],
-                                  shape=APTresults$logit_shapeMean.4.[i],
-                                  amplitude=exp(APTresults$logit_amplitudeMean.4.[i]))
+                                  shape=ilogit(APTresults$logit_shapeMean.4.[i]),
+                                  amplitude=ilogit(APTresults$logit_amplitudeMean.4.[i]))
   mcmcBriere_L4[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.5.[i],
                                   Tmax=APTresults$Tmax.5.[i],
-                                  shape=APTresults$logit_shapeMean.5.[i],
-                                  amplitude=exp(APTresults$logit_amplitudeMean.5.[i]))
+                                  shape=ilogit(APTresults$logit_shapeMean.5.[i]),
+                                  amplitude=ilogit(APTresults$logit_amplitudeMean.5.[i]))
   mcmcBriere_L5[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.6.[i],
                                   Tmax=APTresults$Tmax.6.[i],
-                                  shape=APTresults$logit_shapeMean.6.[i],
-                                  amplitude=exp(APTresults$logit_amplitudeMean.6.[i]))
+                                  shape=ilogit(APTresults$logit_shapeMean.6.[i]),
+                                  amplitude=ilogit(APTresults$logit_amplitudeMean.6.[i]))
 }
 
 meanOeuf <- colMeans(mcmcBriere_Oeuf[1:1000,])
-sdOeuf   <- colSds(mcmcBriere_Oeuf[1:1000,])
+sdOeuf   <- colSds(as.matrix(mcmcBriere_Oeuf[1:1000,]))
 
 meanL1 <- colMeans(mcmcBriere_L1[1:1000,])
 sdL1   <- colSds(mcmcBriere_L1[1:1000,])
@@ -290,6 +289,42 @@ sdL4   <- colSds(mcmcBriere_L4[1:1000,])
 meanL5 <- colMeans(mcmcBriere_L5[1:1000,])
 sdL5   <- colSds(mcmcBriere_L5[1:1000,])
 
-plot(-10:40,TheMean,ylim=c(0,0.04),type = "n")
-polygon(c(-10:40,rev(-10:40)),c((TheMean-TheSD),rev(TheMean+TheSD)),col = "springgreen", border = NA)
-lines(-10:40,TheMean,lty="solid",col="black",lwd=1.5)
+par(mfrow=c(3,2))
+{
+  # Oeuf
+  plot(-80:80,meanOeuf,xlim=c(0,40),ylim=c(0,0.035),main="Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanOeuf-sdOeuf),rev(meanOeuf+sdOeuf)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanOeuf,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L1
+  plot(-80:80,xlim=c(-10,60),ylim=c(0,0.3),meanL1,main="Stade L1",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL1-sdL1),rev(meanL1+sdL1)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL1,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L2
+  plot(-80:80,meanL2,xlim=c(-10,30),ylim=c(0,0.07),main="Stade L2",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL2-sdL2),rev(meanL2+sdL2)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL2,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L3
+  plot(-80:80,xlim=c(0,40),ylim=c(0,0.053),meanL3,main="Stade L3",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL3-sdL3),rev(meanL3+sdL3)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL3,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L4
+  plot(-80:80,xlim=c(0,30),ylim=c(0,0.055),meanL4,main="Stade L4",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL4-sdL4),rev(meanL4+sdL4)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL4,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L5
+  plot(-80:80,meanL5,xlim=c(-20,40),ylim=c(0,0.02),main="Stade L5",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL5-sdL5),rev(meanL5+sdL5)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL5,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+}
