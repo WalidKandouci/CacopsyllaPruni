@@ -21,7 +21,7 @@ if (length(CA)==0) {
   UseScript <- TRUE
 }
 
-if (UseScript) { 
+if (UseScript) {
   print(CA)
   print(SDmodel <- as.integer(CA)[1])
   print(qsubID  <- as.integer(CA)[2])
@@ -48,11 +48,16 @@ source(here::here("src/modelDefinition.R"))
 ##########################
 cPsyllid = compileNimble(rPsyllid)
 
+###############################
+## List available APT output ##
+###############################
+(aptOutputFiles = sort(dir(here("APT/"), pattern="*Temps4.txt")))
+(aptOutputFile = aptOutputFiles[SDmodel])
 
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samplesFileStem = ("Jun-19_23-08-57_2021_Temps4")
+samplesFileStem = sub(aptOutputFile, pat=".txt",rep="")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
 
@@ -190,7 +195,7 @@ if (FALSE) { # TRUE
       col = adjustcolor("red", alpha.f = 0.25),
       border = NA
     )
-    lines(ttemp, ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]), 
+    lines(ttemp, ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]),
           col="red",lwd=1.5)
   }
 }
@@ -201,7 +206,7 @@ if (FALSE) { # TRUE
 # Fix model
 SDmodel=1 #2,3,4,5,6
 
-# Load data 
+# Load data
 
 # Plot
 # library(resample)
@@ -210,16 +215,16 @@ APTresults_sd   <- colStdevs(APTresults)
 
 
 
-curve(stBriere(x,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
+curve(stBriere(x,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])),
       -10,60, n=1001)
 
 
 stBriere(-60:60,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1]))
-         
+
 
 polygon(
   x = c(ttemp, rev(ttemp)),
-  y = c(stBriere(x,Tmin=(mean(APTresults$Tmax.1.)-sd(APTresults$Tmax.1.)),Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
+  y = c(stBriere(x,Tmin=(mean(APTresults$Tmax.1.)-sd(APTresults$Tmax.1.)),Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])),
         rev(quant[3, ])),
   col = adjustcolor("red", alpha.f = 0.25),
   border = NA
