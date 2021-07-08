@@ -165,7 +165,7 @@ Const             = list(
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
 fileStem         = paste0("model",SDmodel, "_")
-previousMCMCfile = here("APT/model6_3636152_Jun-30_01-09-56_2021_Temps4.txt") 
+previousMCMCfile = here("APT/model1_3636147_Jun-30_02-47-40_2021_Temps4.txt") ## Jun-18_19-38-37_2021_Temps4.txt
 previous         = read.table(previousMCMCfile, header=TRUE)
 previous         = previous[-round(1:nrow(previous)/2),] # Remove 1/2 the samples as burn-in
 ##
@@ -179,8 +179,8 @@ Inits = list(
   Tmin                = previous %>% select(grep("Tmin",          colnames(previous))) %>% as.numeric(),
   Tmax                = previous %>% select(grep("Tmax",          colnames(previous))) %>% as.numeric(),
   ## For SDmodel == 1
-  logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% as.numeric(),#%>% logit() %>% as.numeric(),
-  logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% as.numeric(),#%>% logit() %>% as.numeric(),
+  logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% logit() %>% as.numeric(),
+  logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% logit() %>% as.numeric(),
   ## For SDmodel == 2
   beta0      = rep(1, nStagesDev),     # 1 for models 1 3 5
   beta1      = rep(1E-11, nStagesDev),

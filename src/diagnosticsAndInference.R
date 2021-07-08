@@ -7,7 +7,7 @@ library(nimbleTempDev)
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 1 # 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel = 5 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
 nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin    = 10
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
@@ -21,7 +21,7 @@ if (length(CA)==0) {
   UseScript <- TRUE
 }
 
-if (UseScript) { 
+if (UseScript) {
   print(CA)
   print(SDmodel <- as.integer(CA)[1])
   print(qsubID  <- as.integer(CA)[2])
@@ -48,37 +48,35 @@ source(here::here("src/modelDefinition.R"))
 ##########################
 cPsyllid = compileNimble(rPsyllid)
 
+###############################
+## List available APT output ##
+###############################
+(aptOutputFiles = sort(dir(here("APT/"), pattern="*Temps4.txt")))
+(aptOutputFile = aptOutputFiles[SDmodel])
 
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samplesFileStem = ("Jun-19_23-08-57_2021_Temps4")
+samplesFileStem = sub(aptOutputFile, pat=".txt",rep="")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
 
 ####################
 ## Remove burn-in ##
 ####################
-burn = 1:4000
+burn = 1:1000
 samples  = samples[-burn,]
 samples2 = samples2[-burn,]
 
 ##############################
 ## Node lists to work with  ##
 ##############################
-paraNames = gsub("\\..*","", colnames(samples)) %>% unique() # Names of parameter nodes
-depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, includeData = FALSE)) %>% unique()
+(paraNames = gsub("\\..*","", colnames(samples)) %>% unique()) # Names of parameter nodes
+(depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, includeData = FALSE)) %>% unique())
 
-#################
-## Plot stages ##
-#################
-
-# The idea I have is to plot at first each stage on it's own, and maybe have the curv of the tree that we want to see in a difrent color ?
-# I'm not sure of what and how to plot because "stage" is a big array and I don't know if we should plot everything ?
-# and if we don't plot everything what should we really plot ?
-
-# DP: Well first, you need to take one row of parameters from the MCMC output, plug it into the model & update and dependant nodes
-#     This code chunk will probably need plugging into your loops somewhere
+#################################################
+## Plot stages: step 1, construct pStage array ##
+#################################################
 
 nMcmcSamples = 10 # 1000
 pStage = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
@@ -115,7 +113,6 @@ for (iMCMC in 1:nMcmcSamples) {
   }
 }
 
-
 ## iMCMC = 1
 ## iStage = 1
 ## iTree = 1 # the tree
@@ -137,6 +134,9 @@ for (iMCMC in 1:nMcmcSamples) {
 ##   pStage[iMCMC,1:nSteps,iTree,]
 ## }
 
+####################################################
+## Plot stages: step 2, plot info in pStage array ##
+####################################################
 pdf(file = here(paste0("APT/",samplesFileStem, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
   iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
@@ -176,7 +176,6 @@ dev.off()
 ############################
 ## Plot the Briere curves ##
 ############################
-
 if (FALSE) { # TRUE
   par(mfrow=n2mfrow(Const$nStagesDev))
   for (stage in 1:Const$nStagesDev){
@@ -190,7 +189,7 @@ if (FALSE) { # TRUE
       col = adjustcolor("red", alpha.f = 0.25),
       border = NA
     )
-    lines(ttemp, ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]), 
+    lines(ttemp, ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]),
           col="red",lwd=1.5)
   }
 }
@@ -198,29 +197,16 @@ if (FALSE) { # TRUE
 
 ################################################################################
 ################################################################################
-# Fix model
-SDmodel=1 #2,3,4,5,6
 
-# Load data 
-
-# Plot
-# library(resample)
-APTresults_mean <- colMeans(APTresults)
-APTresults_sd   <- colStdevs(APTresults)
-
-
-
-curve(stBriere(x,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
-      -10,60, n=1001)
-
-
-stBriere(-60:60,Tmin=APTresults$Tmax.1.[1],Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1]))
-         
+curve(stBriere(x,Tmin=samples$Tmax.1.[1],Tmax=samples$Tmin.1.[1],shape=samples$logit_shapeMean.1.[1],amplitude=exp(samples$logit_amplitudeMean.1.[1])), -10,60, n=1001, ylab="Development", xlab="Temperature")
 
 polygon(
   x = c(ttemp, rev(ttemp)),
-  y = c(stBriere(x,Tmin=(mean(APTresults$Tmax.1.)-sd(APTresults$Tmax.1.)),Tmax=APTresults$Tmin.1.[1],shape=APTresults$logit_shapeMean.1.[1],amplitude=exp(APTresults$logit_amplitudeMean.1.[1])), 
-        rev(quant[3, ])),
+  y = c(stBriere(x,
+                 Tmin=(mean(samples$Tmax.1.)-sd(samples$Tmax.1.)), ## DP: that looks wrong
+                 Tmax=samples$Tmin.1.[1],                          ## DP: This also looks wrong
+                 shape=samples$logit_shapeMean.1.[1],
+                 amplitude=exp(samples$logit_amplitudeMean.1.[1])), rev(quant[3, ])),
   col = adjustcolor("red", alpha.f = 0.25),
   border = NA
 )
@@ -229,69 +215,65 @@ polygon(
 ## To plot ##
 #############
 library(matrixStats)  # for the sdMeans function
-APTresults <- read.csv("C:/Users/Walid/Desktop/model6_3636152_Jul-_3_1934_Temps4.txt", sep="")
+#### samples <- read.csv("C:/Users/Walid/Desktop/model6_3636152_Jul-_3_1934_Temps4.txt", sep="") ## DP: This is just repeating what is done on line 61, but is less elegent. Here you must copy and paste a file name, whereas line 61 will work conditionally on SDmodel (defined at start of script).
 
-SdModel_Oeuf <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-SdModel_L1   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-SdModel_L2   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-SdModel_L3   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-SdModel_L4   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-SdModel_L5   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
+mcmcBriere_Oeuf <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L1   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L2   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L3   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L4   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L5   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
 
-for (i in 1: dim(APTresults)[1]){
-  SdModel_Oeuf[i,] <- stBriere(-80:80,
-                             Tmin=APTresults$Tmin.1.[i],
-                             Tmax=APTresults$Tmax.1.[i],
-                             shape=ilogit(APTresults$logit_shapeMean.1.[i]),
-                             amplitude=ilogit(APTresults$logit_amplitudeMean.1.[i]))
-  SdModel_L1[i,]   <- stBriere(-80:80,
-                                  Tmin=APTresults$Tmin.2.[i],
-                                  Tmax=APTresults$Tmax.2.[i],
-                                  shape=ilogit(APTresults$logit_shapeMean.2.[i]),
-                                  amplitude=ilogit(APTresults$logit_amplitudeMean.2.[i]))
-  SdModel_L2[i,]   <- stBriere(-80:80,
-                                  Tmin=APTresults$Tmin.3.[i],
-                                  Tmax=APTresults$Tmax.3.[i],
-                                  shape=ilogit(APTresults$logit_shapeMean.3.[i]),
-                                  amplitude=ilogit(APTresults$logit_amplitudeMean.3.[i]))
-  SdModel_L3[i,]   <- stBriere(-80:80,
-                                  Tmin=APTresults$Tmin.4.[i],
-                                  Tmax=APTresults$Tmax.4.[i],
-                                  shape=ilogit(APTresults$logit_shapeMean.4.[i]),
-                                  amplitude=ilogit(APTresults$logit_amplitudeMean.4.[i]))
-  SdModel_L4[i,]   <- stBriere(-80:80,
-                                  Tmin=APTresults$Tmin.5.[i],
-                                  Tmax=APTresults$Tmax.5.[i],
-                                  shape=ilogit(APTresults$logit_shapeMean.5.[i]),
-                                  amplitude=ilogit(APTresults$logit_amplitudeMean.5.[i]))
-  SdModel_L5[i,]   <- stBriere(-80:80,
-                                  Tmin=APTresults$Tmin.6.[i],
-                                  Tmax=APTresults$Tmax.6.[i],
-                                  shape=ilogit(APTresults$logit_shapeMean.6.[i]),
-                                  amplitude=ilogit(APTresults$logit_amplitudeMean.6.[i]))
+for (i in 1: dim(samples)[1]){
+  mcmcBriere_Oeuf[i,] <- stBriere(-80:80,
+                             Tmin=samples$Tmin.1.[i],
+                             Tmax=samples$Tmax.1.[i],
+                             shape=ilogit(samples$logit_shapeMean.1.[i]),
+                             amplitude=ilogit(samples$logit_amplitudeMean.1.[i]))
+  mcmcBriere_L1[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.2.[i],
+                                  Tmax=samples$Tmax.2.[i],
+                                  shape=ilogit(samples$logit_shapeMean.2.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.2.[i]))
+  mcmcBriere_L2[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.3.[i],
+                                  Tmax=samples$Tmax.3.[i],
+                                  shape=ilogit(samples$logit_shapeMean.3.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.3.[i]))
+  mcmcBriere_L3[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.4.[i],
+                                  Tmax=samples$Tmax.4.[i],
+                                  shape=ilogit(samples$logit_shapeMean.4.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.4.[i]))
+  mcmcBriere_L4[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.5.[i],
+                                  Tmax=samples$Tmax.5.[i],
+                                  shape=ilogit(samples$logit_shapeMean.5.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.5.[i]))
+  mcmcBriere_L5[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.6.[i],
+                                  Tmax=samples$Tmax.6.[i],
+                                  shape=ilogit(samples$logit_shapeMean.6.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.6.[i]))
 }
 
-meanOeuf <- colMeans(SdModel_Oeuf[1:1000,])
-sdOeuf   <- colSds(as.matrix(SdModel_Oeuf[1:1000,]))
+meanOeuf <- colMeans(mcmcBriere_Oeuf[1:1000,])
+sdOeuf   <- colSds(as.matrix(mcmcBriere_Oeuf[1:1000,]))
 
-meanL1 <- colMeans(SdModel_L1[1:1000,])
-sdL1   <- colSds(SdModel_L1[1:1000,])
+meanL1 <- colMeans(mcmcBriere_L1[1:1000,])
+sdL1   <- colSds(mcmcBriere_L1[1:1000,])
 
-meanL2 <- colMeans(SdModel_L2[1:1000,])
-sdL2   <- colSds(SdModel_L2[1:1000,])
+meanL2 <- colMeans(mcmcBriere_L2[1:1000,])
+sdL2   <- colSds(mcmcBriere_L2[1:1000,])
 
-meanL3 <- colMeans(SdModel_L3[1:1000,])
-sdL3   <- colSds(SdModel_L3[1:1000,])
+meanL3 <- colMeans(mcmcBriere_L3[1:1000,])
+sdL3   <- colSds(mcmcBriere_L3[1:1000,])
 
-meanL4 <- colMeans(SdModel_L4[1:1000,])
-sdL4   <- colSds(SdModel_L4[1:1000,])
+meanL4 <- colMeans(mcmcBriere_L4[1:1000,])
+sdL4   <- colSds(mcmcBriere_L4[1:1000,])
 
-meanL5 <- colMeans(SdModel_L5[1:1000,])
-sdL5   <- colSds(SdModel_L5[1:1000,])
-
-##############
-## SDmodel1 ##
-##############
+meanL5 <- colMeans(mcmcBriere_L5[1:1000,])
+sdL5   <- colSds(mcmcBriere_L5[1:1000,])
 
 par(mfrow=c(3,2))
 {
@@ -333,23 +315,7 @@ par(mfrow=c(3,2))
   axis(2, col = 'black')
 }
 
-##############
-## SDmodel2 ##
-##############
-
-SdModel2_Oeuf <- SdModel_Oeuf
-SdModel2_L1   <- SdModel_L1
-SdModel2_L2   <- SdModel_L2
-SdModel2_L3   <- SdModel_L3
-SdModel2_L4   <- SdModel_L4
-SdModel2_L5   <- SdModel_L5
-
-for (i in 1: dim(APTresults)[1]){
-  SdModel2_Oeuf[i,] <- SdModel2_Oeuf[i,] * APTresults$beta0.1.[i]
-  SdModel2_L1[i,] <- SdModel2_L1[i,]* APTresults$beta0.2.[i]
-  SdModel2_L2[i,] <- SdModel2_L2[i,]* APTresults$beta0.3.[i]
-  SdModel2_L3[i,] <- SdModel2_L3[i,]* APTresults$beta0.4.[i]
-  SdModel2_L4[i,] <- SdModel2_L4[i,]* APTresults$beta0.5.[i]
-  SdModel2_L5[i,] <- SdModel2_L5[i,]* APTresults$beta0.6.[i]
-    }
-
+## DP comments
+## The above is not too bad, although it could be improved by
+## 1) not hard-wiring xlim and ylim - ideally the code can deduce good values based on the curves or polygons
+## 2) You repeat everything for each stage... that's a lot of code to check and verify. It is a good exercise to put all that repetition inside a loop - it makes for more compact code.
