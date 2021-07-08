@@ -231,63 +231,67 @@ polygon(
 library(matrixStats)  # for the sdMeans function
 APTresults <- read.csv("C:/Users/Walid/Desktop/model6_3636152_Jul-_3_1934_Temps4.txt", sep="")
 
-mcmcBriere_Oeuf <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-mcmcBriere_L1   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-mcmcBriere_L2   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-mcmcBriere_L3   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-mcmcBriere_L4   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
-mcmcBriere_L5   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
+SdModel_Oeuf <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
+SdModel_L1   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
+SdModel_L2   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
+SdModel_L3   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
+SdModel_L4   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
+SdModel_L5   <- matrix(NA, nrow=dim(APTresults)[1], ncol = length(-80:80))
 
 for (i in 1: dim(APTresults)[1]){
-  mcmcBriere_Oeuf[i,] <- stBriere(-80:80,
+  SdModel_Oeuf[i,] <- stBriere(-80:80,
                              Tmin=APTresults$Tmin.1.[i],
                              Tmax=APTresults$Tmax.1.[i],
                              shape=ilogit(APTresults$logit_shapeMean.1.[i]),
                              amplitude=ilogit(APTresults$logit_amplitudeMean.1.[i]))
-  mcmcBriere_L1[i,]   <- stBriere(-80:80,
+  SdModel_L1[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.2.[i],
                                   Tmax=APTresults$Tmax.2.[i],
                                   shape=ilogit(APTresults$logit_shapeMean.2.[i]),
                                   amplitude=ilogit(APTresults$logit_amplitudeMean.2.[i]))
-  mcmcBriere_L2[i,]   <- stBriere(-80:80,
+  SdModel_L2[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.3.[i],
                                   Tmax=APTresults$Tmax.3.[i],
                                   shape=ilogit(APTresults$logit_shapeMean.3.[i]),
                                   amplitude=ilogit(APTresults$logit_amplitudeMean.3.[i]))
-  mcmcBriere_L3[i,]   <- stBriere(-80:80,
+  SdModel_L3[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.4.[i],
                                   Tmax=APTresults$Tmax.4.[i],
                                   shape=ilogit(APTresults$logit_shapeMean.4.[i]),
                                   amplitude=ilogit(APTresults$logit_amplitudeMean.4.[i]))
-  mcmcBriere_L4[i,]   <- stBriere(-80:80,
+  SdModel_L4[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.5.[i],
                                   Tmax=APTresults$Tmax.5.[i],
                                   shape=ilogit(APTresults$logit_shapeMean.5.[i]),
                                   amplitude=ilogit(APTresults$logit_amplitudeMean.5.[i]))
-  mcmcBriere_L5[i,]   <- stBriere(-80:80,
+  SdModel_L5[i,]   <- stBriere(-80:80,
                                   Tmin=APTresults$Tmin.6.[i],
                                   Tmax=APTresults$Tmax.6.[i],
                                   shape=ilogit(APTresults$logit_shapeMean.6.[i]),
                                   amplitude=ilogit(APTresults$logit_amplitudeMean.6.[i]))
 }
 
-meanOeuf <- colMeans(mcmcBriere_Oeuf[1:1000,])
-sdOeuf   <- colSds(as.matrix(mcmcBriere_Oeuf[1:1000,]))
+meanOeuf <- colMeans(SdModel_Oeuf[1:1000,])
+sdOeuf   <- colSds(as.matrix(SdModel_Oeuf[1:1000,]))
 
-meanL1 <- colMeans(mcmcBriere_L1[1:1000,])
-sdL1   <- colSds(mcmcBriere_L1[1:1000,])
+meanL1 <- colMeans(SdModel_L1[1:1000,])
+sdL1   <- colSds(SdModel_L1[1:1000,])
 
-meanL2 <- colMeans(mcmcBriere_L2[1:1000,])
-sdL2   <- colSds(mcmcBriere_L2[1:1000,])
+meanL2 <- colMeans(SdModel_L2[1:1000,])
+sdL2   <- colSds(SdModel_L2[1:1000,])
 
-meanL3 <- colMeans(mcmcBriere_L3[1:1000,])
-sdL3   <- colSds(mcmcBriere_L3[1:1000,])
+meanL3 <- colMeans(SdModel_L3[1:1000,])
+sdL3   <- colSds(SdModel_L3[1:1000,])
 
-meanL4 <- colMeans(mcmcBriere_L4[1:1000,])
-sdL4   <- colSds(mcmcBriere_L4[1:1000,])
+meanL4 <- colMeans(SdModel_L4[1:1000,])
+sdL4   <- colSds(SdModel_L4[1:1000,])
 
-meanL5 <- colMeans(mcmcBriere_L5[1:1000,])
-sdL5   <- colSds(mcmcBriere_L5[1:1000,])
+meanL5 <- colMeans(SdModel_L5[1:1000,])
+sdL5   <- colSds(SdModel_L5[1:1000,])
+
+##############
+## SDmodel1 ##
+##############
 
 par(mfrow=c(3,2))
 {
@@ -328,3 +332,24 @@ par(mfrow=c(3,2))
   axis(1, col = 'black')
   axis(2, col = 'black')
 }
+
+##############
+## SDmodel2 ##
+##############
+
+SdModel2_Oeuf <- SdModel_Oeuf
+SdModel2_L1   <- SdModel_L1
+SdModel2_L2   <- SdModel_L2
+SdModel2_L3   <- SdModel_L3
+SdModel2_L4   <- SdModel_L4
+SdModel2_L5   <- SdModel_L5
+
+for (i in 1: dim(APTresults)[1]){
+  SdModel2_Oeuf[i,] <- SdModel2_Oeuf[i,] * APTresults$beta0.1.[i]
+  SdModel2_L1[i,] <- SdModel2_L1[i,]* APTresults$beta0.2.[i]
+  SdModel2_L2[i,] <- SdModel2_L2[i,]* APTresults$beta0.3.[i]
+  SdModel2_L3[i,] <- SdModel2_L3[i,]* APTresults$beta0.4.[i]
+  SdModel2_L4[i,] <- SdModel2_L4[i,]* APTresults$beta0.5.[i]
+  SdModel2_L5[i,] <- SdModel2_L5[i,]* APTresults$beta0.6.[i]
+    }
+
