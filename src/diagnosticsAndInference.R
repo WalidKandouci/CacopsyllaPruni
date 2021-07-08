@@ -7,7 +7,7 @@ library(nimbleTempDev)
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 1 # 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel = 5 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
 nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin    = 10
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
@@ -21,7 +21,7 @@ if (length(CA)==0) {
   UseScript <- TRUE
 }
 
-if (UseScript) { 
+if (UseScript) {
   print(CA)
   print(SDmodel <- as.integer(CA)[1])
   print(qsubID  <- as.integer(CA)[2])
@@ -48,37 +48,35 @@ source(here::here("src/modelDefinition.R"))
 ##########################
 cPsyllid = compileNimble(rPsyllid)
 
+###############################
+## List available APT output ##
+###############################
+(aptOutputFiles = sort(dir(here("APT/"), pattern="*Temps4.txt")))
+(aptOutputFile = aptOutputFiles[SDmodel])
 
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samplesFileStem = ("Jun-19_23-08-57_2021_Temps4")
+samplesFileStem = sub(aptOutputFile, pat=".txt",rep="")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
 
 ####################
 ## Remove burn-in ##
 ####################
-burn = 1:4000
+burn = 1:1000
 samples  = samples[-burn,]
 samples2 = samples2[-burn,]
 
 ##############################
 ## Node lists to work with  ##
 ##############################
-paraNames = gsub("\\..*","", colnames(samples)) %>% unique() # Names of parameter nodes
-depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, includeData = FALSE)) %>% unique()
+(paraNames = gsub("\\..*","", colnames(samples)) %>% unique()) # Names of parameter nodes
+(depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, includeData = FALSE)) %>% unique())
 
-#################
-## Plot stages ##
-#################
-
-# The idea I have is to plot at first each stage on it's own, and maybe have the curv of the tree that we want to see in a difrent color ?
-# I'm not sure of what and how to plot because "stage" is a big array and I don't know if we should plot everything ?
-# and if we don't plot everything what should we really plot ?
-
-# DP: Well first, you need to take one row of parameters from the MCMC output, plug it into the model & update and dependant nodes
-#     This code chunk will probably need plugging into your loops somewhere
+#################################################
+## Plot stages: step 1, construct pStage array ##
+#################################################
 
 nMcmcSamples = 10 # 1000
 pStage = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
@@ -115,7 +113,6 @@ for (iMCMC in 1:nMcmcSamples) {
   }
 }
 
-
 ## iMCMC = 1
 ## iStage = 1
 ## iTree = 1 # the tree
@@ -137,6 +134,9 @@ for (iMCMC in 1:nMcmcSamples) {
 ##   pStage[iMCMC,1:nSteps,iTree,]
 ## }
 
+####################################################
+## Plot stages: step 2, plot info in pStage array ##
+####################################################
 pdf(file = here(paste0("APT/",samplesFileStem, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
   iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
@@ -172,3 +172,150 @@ for(iTree in 1:nTrees) {
   }
 }
 dev.off()
+
+############################
+## Plot the Briere curves ##
+############################
+if (FALSE) { # TRUE
+  par(mfrow=n2mfrow(Const$nStagesDev))
+  for (stage in 1:Const$nStagesDev){
+    ttemp = -20:60
+    quant = apply(paras[stage,iTemp,2],2, "quantile",prob = c(0.025, 0.5, 0.975))
+    plot(ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]),
+         type = 'n', xlab = "time",ylab = "proportion")
+    polygon(
+      x = c(ttemp, rev(ttemp)),
+      y = c(quant[1, ], rev(quant[3, ])),
+      col = adjustcolor("red", alpha.f = 0.25),
+      border = NA
+    )
+    lines(ttemp, ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]),
+          col="red",lwd=1.5)
+  }
+}
+
+
+################################################################################
+################################################################################
+
+curve(stBriere(x,Tmin=samples$Tmax.1.[1],Tmax=samples$Tmin.1.[1],shape=samples$logit_shapeMean.1.[1],amplitude=exp(samples$logit_amplitudeMean.1.[1])), -10,60, n=1001, ylab="Development", xlab="Temperature")
+
+polygon(
+  x = c(ttemp, rev(ttemp)),
+  y = c(stBriere(x,
+                 Tmin=(mean(samples$Tmax.1.)-sd(samples$Tmax.1.)), ## DP: that looks wrong
+                 Tmax=samples$Tmin.1.[1],                          ## DP: This also looks wrong
+                 shape=samples$logit_shapeMean.1.[1],
+                 amplitude=exp(samples$logit_amplitudeMean.1.[1])), rev(quant[3, ])),
+  col = adjustcolor("red", alpha.f = 0.25),
+  border = NA
+)
+
+#############
+## To plot ##
+#############
+library(matrixStats)  # for the sdMeans function
+#### samples <- read.csv("C:/Users/Walid/Desktop/model6_3636152_Jul-_3_1934_Temps4.txt", sep="") ## DP: This is just repeating what is done on line 61, but is less elegent. Here you must copy and paste a file name, whereas line 61 will work conditionally on SDmodel (defined at start of script).
+
+mcmcBriere_Oeuf <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L1   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L2   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L3   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L4   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+mcmcBriere_L5   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+
+for (i in 1: dim(samples)[1]){
+  mcmcBriere_Oeuf[i,] <- stBriere(-80:80,
+                             Tmin=samples$Tmin.1.[i],
+                             Tmax=samples$Tmax.1.[i],
+                             shape=ilogit(samples$logit_shapeMean.1.[i]),
+                             amplitude=ilogit(samples$logit_amplitudeMean.1.[i]))
+  mcmcBriere_L1[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.2.[i],
+                                  Tmax=samples$Tmax.2.[i],
+                                  shape=ilogit(samples$logit_shapeMean.2.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.2.[i]))
+  mcmcBriere_L2[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.3.[i],
+                                  Tmax=samples$Tmax.3.[i],
+                                  shape=ilogit(samples$logit_shapeMean.3.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.3.[i]))
+  mcmcBriere_L3[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.4.[i],
+                                  Tmax=samples$Tmax.4.[i],
+                                  shape=ilogit(samples$logit_shapeMean.4.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.4.[i]))
+  mcmcBriere_L4[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.5.[i],
+                                  Tmax=samples$Tmax.5.[i],
+                                  shape=ilogit(samples$logit_shapeMean.5.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.5.[i]))
+  mcmcBriere_L5[i,]   <- stBriere(-80:80,
+                                  Tmin=samples$Tmin.6.[i],
+                                  Tmax=samples$Tmax.6.[i],
+                                  shape=ilogit(samples$logit_shapeMean.6.[i]),
+                                  amplitude=ilogit(samples$logit_amplitudeMean.6.[i]))
+}
+
+meanOeuf <- colMeans(mcmcBriere_Oeuf[1:1000,])
+sdOeuf   <- colSds(as.matrix(mcmcBriere_Oeuf[1:1000,]))
+
+meanL1 <- colMeans(mcmcBriere_L1[1:1000,])
+sdL1   <- colSds(mcmcBriere_L1[1:1000,])
+
+meanL2 <- colMeans(mcmcBriere_L2[1:1000,])
+sdL2   <- colSds(mcmcBriere_L2[1:1000,])
+
+meanL3 <- colMeans(mcmcBriere_L3[1:1000,])
+sdL3   <- colSds(mcmcBriere_L3[1:1000,])
+
+meanL4 <- colMeans(mcmcBriere_L4[1:1000,])
+sdL4   <- colSds(mcmcBriere_L4[1:1000,])
+
+meanL5 <- colMeans(mcmcBriere_L5[1:1000,])
+sdL5   <- colSds(mcmcBriere_L5[1:1000,])
+
+par(mfrow=c(3,2))
+{
+  # Oeuf
+  plot(-80:80,meanOeuf,xlim=c(0,40),ylim=c(0,0.035),main="Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanOeuf-sdOeuf),rev(meanOeuf+sdOeuf)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanOeuf,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L1
+  plot(-80:80,xlim=c(-10,60),ylim=c(0,0.3),meanL1,main="Stade L1",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL1-sdL1),rev(meanL1+sdL1)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL1,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L2
+  plot(-80:80,meanL2,xlim=c(-10,30),ylim=c(0,0.07),main="Stade L2",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL2-sdL2),rev(meanL2+sdL2)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL2,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L3
+  plot(-80:80,xlim=c(0,40),ylim=c(0,0.053),meanL3,main="Stade L3",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL3-sdL3),rev(meanL3+sdL3)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL3,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L4
+  plot(-80:80,xlim=c(0,30),ylim=c(0,0.055),meanL4,main="Stade L4",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL4-sdL4),rev(meanL4+sdL4)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL4,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+  # L5
+  plot(-80:80,meanL5,xlim=c(-20,40),ylim=c(0,0.02),main="Stade L5",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  polygon(c(-80:80,rev(-80:80)),c((meanL5-sdL5),rev(meanL5+sdL5)),col = "springgreen", border = "springgreen",lwd=3)
+  lines(-80:80,meanL5,lty="solid",col="black",lwd=1.5)
+  axis(1, col = 'black')
+  axis(2, col = 'black')
+}
+
+## DP comments
+## The above is not too bad, although it could be improved by
+## 1) not hard-wiring xlim and ylim - ideally the code can deduce good values based on the curves or polygons
+## 2) You repeat everything for each stage... that's a lot of code to check and verify. It is a good exercise to put all that repetition inside a loop - it makes for more compact code.
