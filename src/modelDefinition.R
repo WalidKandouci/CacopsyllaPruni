@@ -165,7 +165,7 @@ Const             = list(
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
 fileStem         = paste0("model",SDmodel, "_")
-previousMCMCfile = here("APT/model1_3636147_Jun-30_02-47-40_2021_Temps4.txt") ## Jun-18_19-38-37_2021_Temps4.txt
+previousMCMCfile = here("APT/model1_3636147_Jul-_8_0114_Temps4.txt") ## Jun-18_19-38-37_2021_Temps4.txt
 previous         = read.table(previousMCMCfile, header=TRUE)
 previous         = previous[-round(1:nrow(previous)/2),] # Remove 1/2 the samples as burn-in
 ##
