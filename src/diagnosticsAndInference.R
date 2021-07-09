@@ -210,6 +210,7 @@ polygon(
   col = adjustcolor("red", alpha.f = 0.25),
   border = NA
 )
+################################################################################
 
 #############
 ## To plot ##
@@ -268,58 +269,58 @@ for (i in 1: dim(samples)[1]){
                                   amplitude=ilogit(samples$logit_amplitudeMean.6.[i]))
 }
 
-meanOeuf <- colMeans(sdModel_Oeuf[1:1000,])
-sdOeuf   <- colSds(as.matrix(sdModel_Oeuf[1:1000,]))
+meanOeuf <- colMeans(sdModel_Oeuf)
+sdOeuf   <- colSds(as.matrix(sdModel_Oeuf))
 
-meanL1 <- colMeans(sdModel_L1[1:1000,])
-sdL1   <- colSds(sdModel_L1[1:1000,])
+meanL1 <- colMeans(sdModel_L1)
+sdL1   <- colSds(sdModel_L1)
 
-meanL2 <- colMeans(sdModel_L2[1:1000,])
-sdL2   <- colSds(sdModel_L2[1:1000,])
+meanL2 <- colMeans(sdModel_L2)
+sdL2   <- colSds(sdModel_L2)
 
-meanL3 <- colMeans(sdModel_L3[1:1000,])
-sdL3   <- colSds(sdModel_L3[1:1000,])
+meanL3 <- colMeans(sdModel_L3)
+sdL3   <- colSds(sdModel_L3)
 
-meanL4 <- colMeans(sdModel_L4[1:1000,])
-sdL4   <- colSds(sdModel_L4[1:1000,])
+meanL4 <- colMeans(sdModel_L4)
+sdL4   <- colSds(sdModel_L4)
 
-meanL5 <- colMeans(sdModel_L5[1:1000,])
-sdL5   <- colSds(sdModel_L5[1:1000,])
-
+meanL5 <- colMeans(sdModel_L5)
+sdL5   <- colSds(sdModel_L5)
+pdf(file = "sdModelsResults.pdf")
 par(mfrow=c(3,2))
 {
   # Oeuf
-  plot(-80:80,meanOeuf,main="sdModel - Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanOeuf,main="Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanOeuf-sdOeuf),rev(meanOeuf+sdOeuf)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanOeuf,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L1
-  plot(-80:80,meanL1,main="sdModel - Stade L1",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL1,main="Stade L1",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL1-sdL1),rev(meanL1+sdL1)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL1,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L2
-  plot(-80:80,meanL2,main="sdModel - Stade L2",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL2,main="Stade L2",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL2-sdL2),rev(meanL2+sdL2)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL2,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L3
-  plot(-80:80,meanL3,main="sdModel - Stade L3",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL3,main="Stade L3",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL3-sdL3),rev(meanL3+sdL3)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL3,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L4
-  plot(-80:80,meanL4,main="sdModel - Stade L4",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL4,main="Stade L4",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL4-sdL4),rev(meanL4+sdL4)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL4,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L5
-  plot(-80:80,meanL5,main="sdModel - Stade L5",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL5,main="Stade L5",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL5-sdL5),rev(meanL5+sdL5)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL5,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
@@ -327,12 +328,12 @@ par(mfrow=c(3,2))
 }
 
 ########################
-sdModel1_Oeuf = sdModel2_Oeuf = sdModel3_Oeuf = sdModel4_Oeuf = sdModel5_Oeuf = sdModel_Oeuf
-sdModel1_L1 = sdModel2_L1 = sdModel3_L1 = sdModel4_L1 = sdModel5_L1 =  sdModel_L1
-sdModel1_L2 = sdModel2_L2 = sdModel3_L2 = sdModel4_L2 = sdModel5_L2 =  sdModel_L2
-sdModel1_L3 = sdModel2_L3 = sdModel3_L3 = sdModel4_L3 = sdModel5_L3 =  sdModel_L3
-sdModel1_L4 = sdModel2_L4 = sdModel3_L4 = sdModel4_L4 = sdModel5_L4 =  sdModel_L4
-sdModel1_L5 = sdModel2_L5 = sdModel3_L5 = sdModel4_L5 = sdModel5_L5 =  sdModel_L5
+sdModel1_Oeuf = sdModel2_Oeuf = sdModel3_Oeuf = sdModel4_Oeuf = sdModel5_Oeuf = sdModel6_Oeuf= sdModel_Oeuf
+sdModel1_L1 = sdModel2_L1 = sdModel3_L1 = sdModel4_L1 = sdModel5_L1 = sdModel6_L1 =  sdModel_L1
+sdModel1_L2 = sdModel2_L2 = sdModel3_L2 = sdModel4_L2 = sdModel5_L2 = sdModel6_L2 = sdModel_L2
+sdModel1_L3 = sdModel2_L3 = sdModel3_L3 = sdModel4_L3 = sdModel5_L3 = sdModel6_L3 = sdModel_L3
+sdModel1_L4 = sdModel2_L4 = sdModel3_L4 = sdModel4_L4 = sdModel5_L4 = sdModel6_L4 = sdModel_L4
+sdModel1_L5 = sdModel2_L5 = sdModel3_L5 = sdModel4_L5 = sdModel5_L5 = sdModel6_L5 = sdModel_L5
 ########################
 
 ##############
@@ -348,23 +349,23 @@ for (i in 1: dim(samples)[1]){
   sdModel1_L5[i,]   <- sdModel1_L5[i,] * exp(samples$beta0.6.[i])
 }
 
-meanOeuf_sdModel1 <- colMeans(sdModel1_Oeuf[1:1000,])
-sdOeuf_sdModel1   <- colSds(as.matrix(sdModel1_Oeuf[1:1000,]))
+meanOeuf_sdModel1 <- colMeans(sdModel1_Oeuf)
+sdOeuf_sdModel1   <- colSds(as.matrix(sdModel1_Oeuf))
 
-meanL1_sdModel1 <- colMeans(sdModel1_L1[1:1000,])
-sdL1_sdModel1   <- colSds(sdModel1_L1[1:1000,])
+meanL1_sdModel1 <- colMeans(sdModel1_L1)
+sdL1_sdModel1   <- colSds(sdModel1_L1)
 
-meanL2_sdModel1 <- colMeans(sdModel1_L2[1:1000,])
-sdL2_sdModel1 <- colSds(sdModel1_L2[1:1000,])
+meanL2_sdModel1 <- colMeans(sdModel1_L2)
+sdL2_sdModel1 <- colSds(sdModel1_L2)
 
-meanL3_sdModel1 <- colMeans(sdModel1_L3[1:1000,])
-sdL3_sdModel1 <- colSds(sdModel1_L3[1:1000,])
+meanL3_sdModel1 <- colMeans(sdModel1_L3)
+sdL3_sdModel1 <- colSds(sdModel1_L3)
 
-meanL4_sdModel1 <- colMeans(sdModel1_L4[1:1000,])
-sdL4_sdModel1 <- colSds(sdModel1_L4[1:1000,])
+meanL4_sdModel1 <- colMeans(sdModel1_L4)
+sdL4_sdModel1 <- colSds(sdModel1_L4)
 
-meanL5_sdModel1 <- colMeans(sdModel1_L5[1:1000,])
-sdL5_sdModel1 <- colSds(sdModel1_L5[1:1000,])
+meanL5_sdModel1 <- colMeans(sdModel1_L5)
+sdL5_sdModel1 <- colSds(sdModel1_L5)
 
 par(mfrow=c(3,2))
 {
@@ -431,23 +432,23 @@ for (i in 1: dim(samples)[1]){
     }
 }
 
-meanOeuf_sdModel2 <- colMeans(sdModel2_Oeuf[1:1000,])
-sdOeuf_sdModel2   <- colSds(as.matrix(sdModel2_Oeuf[1:1000,]))
+meanOeuf_sdModel2 <- colMeans(sdModel2_Oeuf)
+sdOeuf_sdModel2   <- colSds(as.matrix(sdModel2_Oeuf))
 
-meanL1_sdModel2 <- colMeans(sdModel2_L1[1:1000,])
-sdL1_sdModel2   <- colSds(sdModel2_L1[1:1000,])
+meanL1_sdModel2 <- colMeans(sdModel2_L1)
+sdL1_sdModel2   <- colSds(sdModel2_L1)
 
-meanL2_sdModel2 <- colMeans(sdModel2_L2[1:1000,])
-sdL2_sdModel2 <- colSds(sdModel2_L2[1:1000,])
+meanL2_sdModel2 <- colMeans(sdModel2_L2)
+sdL2_sdModel2 <- colSds(sdModel2_L2)
 
-meanL3_sdModel2 <- colMeans(sdModel2_L3[1:1000,])
-sdL3_sdModel2 <- colSds(sdModel2_L3[1:1000,])
+meanL3_sdModel2 <- colMeans(sdModel2_L3)
+sdL3_sdModel2 <- colSds(sdModel2_L3)
 
-meanL4_sdModel2 <- colMeans(sdModel2_L4[1:1000,])
-sdL4_sdModel2 <- colSds(sdModel2_L4[1:1000,])
+meanL4_sdModel2 <- colMeans(sdModel2_L4)
+sdL4_sdModel2 <- colSds(sdModel2_L4)
 
-meanL5_sdModel2 <- colMeans(sdModel2_L5[1:1000,])
-sdL5_sdModel2 <- colSds(sdModel2_L5[1:1000,])
+meanL5_sdModel2 <- colMeans(sdModel2_L5)
+sdL5_sdModel2 <- colSds(sdModel2_L5)
 
 par(mfrow=c(3,2))
 {
@@ -504,23 +505,23 @@ for (i in 1: dim(samples)[1]){
   }
 }
 
-meanOeuf_sdModel3 <- colMeans(sdModel3_Oeuf[1:1000,])
-sdOeuf_sdModel3   <- colSds(as.matrix(sdModel3_Oeuf[1:1000,]))
+meanOeuf_sdModel3 <- colMeans(sdModel3_Oeuf)
+sdOeuf_sdModel3   <- colSds(as.matrix(sdModel3_Oeuf))
 
-meanL1_sdModel3 <- colMeans(sdModel3_L1[1:1000,])
-sdL1_sdModel3   <- colSds(sdModel3_L1[1:1000,])
+meanL1_sdModel3 <- colMeans(sdModel3_L1)
+sdL1_sdModel3   <- colSds(sdModel3_L1)
 
-meanL2_sdModel3 <- colMeans(sdModel3_L2[1:1000,])
-sdL2_sdModel3 <- colSds(sdModel3_L2[1:1000,])
+meanL2_sdModel3 <- colMeans(sdModel3_L2)
+sdL2_sdModel3 <- colSds(sdModel3_L2)
 
-meanL3_sdModel3 <- colMeans(sdModel3_L3[1:1000,])
-sdL3_sdModel3 <- colSds(sdModel3_L3[1:1000,])
+meanL3_sdModel3 <- colMeans(sdModel3_L3)
+sdL3_sdModel3 <- colSds(sdModel3_L3)
 
-meanL4_sdModel3 <- colMeans(sdModel3_L4[1:1000,])
-sdL4_sdModel3 <- colSds(sdModel3_L4[1:1000,])
+meanL4_sdModel3 <- colMeans(sdModel3_L4)
+sdL4_sdModel3 <- colSds(sdModel3_L4)
 
-meanL5_sdModel3 <- colMeans(sdModel3_L5[1:1000,])
-sdL5_sdModel3 <- colSds(sdModel3_L5[1:1000,])
+meanL5_sdModel3 <- colMeans(sdModel3_L5)
+sdL5_sdModel3 <- colSds(sdModel3_L5)
 
 par(mfrow=c(3,2))
 {
@@ -589,23 +590,23 @@ for (i in 1: dim(samples)[1]){
   }
 }
     
-meanOeuf_sdModel4 <- colMeans(sdModel4_Oeuf[1:1000,])
-sdOeuf_sdModel4   <- colSds(as.matrix(sdModel4_Oeuf[1:1000,]))
+meanOeuf_sdModel4 <- colMeans(sdModel4_Oeuf)
+sdOeuf_sdModel4   <- colSds(as.matrix(sdModel4_Oeuf))
 
-meanL1_sdModel4 <- colMeans(sdModel4_L1[1:1000,])
-sdL1_sdModel4   <- colSds(sdModel4_L1[1:1000,])
+meanL1_sdModel4 <- colMeans(sdModel4_L1)
+sdL1_sdModel4   <- colSds(sdModel4_L1)
 
-meanL2_sdModel4 <- colMeans(sdModel4_L2[1:1000,])
-sdL2_sdModel4 <- colSds(sdModel4_L2[1:1000,])
+meanL2_sdModel4 <- colMeans(sdModel4_L2)
+sdL2_sdModel4 <- colSds(sdModel4_L2)
 
-meanL3_sdModel4 <- colMeans(sdModel4_L3[1:1000,])
-sdL3_sdModel4 <- colSds(sdModel4_L3[1:1000,])
+meanL3_sdModel4 <- colMeans(sdModel4_L3)
+sdL3_sdModel4 <- colSds(sdModel4_L3)
 
-meanL4_sdModel4 <- colMeans(sdModel4_L4[1:1000,])
-sdL4_sdModel4 <- colSds(sdModel4_L4[1:1000,])
+meanL4_sdModel4 <- colMeans(sdModel4_L4)
+sdL4_sdModel4 <- colSds(sdModel4_L4)
 
-meanL5_sdModel4 <- colMeans(sdModel4_L5[1:1000,])
-sdL5_sdModel4 <- colSds(sdModel4_L5[1:1000,])
+meanL5_sdModel4 <- colMeans(sdModel4_L5)
+sdL5_sdModel4 <- colSds(sdModel4_L5)
 
 par(mfrow=c(3,2))
 {
@@ -662,23 +663,23 @@ for (i in 1: dim(samples)[1]){
   }
 }
 
-meanOeuf_sdModel5 <- colMeans(sdModel5_Oeuf[1:1000,])
-sdOeuf_sdModel5   <- colSds(as.matrix(sdModel5_Oeuf[1:1000,]))
+meanOeuf_sdModel5 <- colMeans(sdModel5_Oeuf)
+sdOeuf_sdModel5   <- colSds(as.matrix(sdModel5_Oeuf))
 
-meanL1_sdModel5 <- colMeans(sdModel5_L1[1:1000,])
-sdL1_sdModel5   <- colSds(sdModel5_L1[1:1000,])
+meanL1_sdModel5 <- colMeans(sdModel5_L1)
+sdL1_sdModel5   <- colSds(sdModel5_L1)
 
-meanL2_sdModel5 <- colMeans(sdModel5_L2[1:1000,])
-sdL2_sdModel5 <- colSds(sdModel5_L2[1:1000,])
+meanL2_sdModel5 <- colMeans(sdModel5_L2)
+sdL2_sdModel5 <- colSds(sdModel5_L2)
 
-meanL3_sdModel5 <- colMeans(sdModel5_L3[1:1000,])
-sdL3_sdModel5 <- colSds(sdModel5_L3[1:1000,])
+meanL3_sdModel5 <- colMeans(sdModel5_L3)
+sdL3_sdModel5 <- colSds(sdModel5_L3)
 
-meanL4_sdModel5 <- colMeans(sdModel5_L4[1:1000,])
-sdL4_sdModel5 <- colSds(sdModel5_L4[1:1000,])
+meanL4_sdModel5 <- colMeans(sdModel5_L4)
+sdL4_sdModel5 <- colSds(sdModel5_L4)
 
-meanL5_sdModel5 <- colMeans(sdModel5_L5[1:1000,])
-sdL5_sdModel5 <- colSds(sdModel5_L5[1:1000,])
+meanL5_sdModel5 <- colMeans(sdModel5_L5)
+sdL5_sdModel5 <- colSds(sdModel5_L5)
 
 par(mfrow=c(3,2))
 {
@@ -727,43 +728,43 @@ par(mfrow=c(3,2))
 for (i in 1: dim(samples)[1]){
   for (itemp in 1: lTempVec){
     if(sdModel6_Oeuf[i,]>0){
-      sdModel6_Oeuf[i,] <- sdModel6_Oeuf[i,] * exp(samples$beta0.1.[i] + samples$beta1.1.[i] * tempVec[itemp] + samples$beta2.1.[i] * tempVec[itemp])
+      sdModel6_Oeuf[i,] <- sdModel_Oeuf[i,] * exp(samples$beta0.1.[i] + samples$beta1.1.[i] * tempVec[itemp] + samples$beta2.1.[i] * tempVec[itemp])
     }
     if(sdModel6_L1[i,]>0){
-      sdModel6_L1[i,]   <- sdModel6_L1[i,] * exp(samples$beta0.2.[i] + samples$beta1.2.[i] * tempVec[itemp] + samples$beta2.2.[i] * tempVec[itemp])
+      sdModel6_L1[i,]   <- sdModel_L1[i,] * exp(samples$beta0.2.[i] + samples$beta1.2.[i] * tempVec[itemp] + samples$beta2.2.[i] * tempVec[itemp])
     }
     if(sdModel6_L2[i,]>0){
-      sdModel6_L2[i,]   <- sdModel6_L2[i,] * exp(samples$beta0.3.[i] + samples$beta1.3.[i] * tempVec[itemp] + samples$beta2.3.[i] * tempVec[itemp])
+      sdModel6_L2[i,]   <- sdModel_L2[i,] * exp(samples$beta0.3.[i] + samples$beta1.3.[i] * tempVec[itemp] + samples$beta2.3.[i] * tempVec[itemp])
     }
     if(sdModel6_L3[i,]>0){
-      sdModel6_L3[i,]   <- sdModel6_L3[i,] * exp(samples$beta0.4.[i] + samples$beta1.4.[i] * tempVec[itemp] + samples$beta2.4.[i] * tempVec[itemp])
+      sdModel6_L3[i,]   <- sdModel_L3[i,] * exp(samples$beta0.4.[i] + samples$beta1.4.[i] * tempVec[itemp] + samples$beta2.4.[i] * tempVec[itemp])
     }
     if(sdModel6_L4[i,]>0){
-      sdModel6_L4[i,]   <- sdModel6_L4[i,] * exp(samples$beta0.5.[i] + samples$beta1.5.[i] * tempVec[itemp] + samples$beta2.5.[i] * tempVec[itemp])
+      sdModel6_L4[i,]   <- sdModel_L4[i,] * exp(samples$beta0.5.[i] + samples$beta1.5.[i] * tempVec[itemp] + samples$beta2.5.[i] * tempVec[itemp])
     }
     if(sdModel6_L5[i,]>0){
-      sdModel6_L5[i,]   <- sdModel6_L5[i,] * exp(samples$beta0.6.[i] + samples$beta1.6.[i] * tempVec[itemp] + samples$beta2.6.[i] * tempVec[itemp])
+      sdModel6_L5[i,]   <- sdModel_L5[i,] * exp(samples$beta0.6.[i] + samples$beta1.6.[i] * tempVec[itemp] + samples$beta2.6.[i] * tempVec[itemp])
     }
   }
 }
 
-meanOeuf_sdModel6 <- colMeans(sdModel6_Oeuf[1:1000,])
-sdOeuf_sdModel6   <- colSds(as.matrix(sdModel6_Oeuf[1:1000,]))
+meanOeuf_sdModel6 <- colMeans(sdModel6_Oeuf)
+sdOeuf_sdModel6   <- colSds(as.matrix(sdModel6_Oeuf))
 
-meanL1_sdModel6 <- colMeans(sdModel6_L1[1:1000,])
-sdL1_sdModel6   <- colSds(sdModel6_L1[1:1000,])
+meanL1_sdModel6 <- colMeans(sdModel6_L1)
+sdL1_sdModel6   <- colSds(sdModel6_L1)
 
-meanL2_sdModel6 <- colMeans(sdModel6_L2[1:1000,])
-sdL2_sdModel6 <- colSds(sdModel6_L2[1:1000,])
+meanL2_sdModel6 <- colMeans(sdModel6_L2)
+sdL2_sdModel6 <- colSds(sdModel6_L2)
 
-meanL3_sdModel6 <- colMeans(sdModel6_L3[1:1000,])
-sdL3_sdModel6 <- colSds(sdModel6_L3[1:1000,])
+meanL3_sdModel6 <- colMeans(sdModel6_L3)
+sdL3_sdModel6 <- colSds(sdModel6_L3)
 
-meanL4_sdModel6 <- colMeans(sdModel6_L4[1:1000,])
-sdL4_sdModel6 <- colSds(sdModel6_L4[1:1000,])
+meanL4_sdModel6 <- colMeans(sdModel6_L4)
+sdL4_sdModel6 <- colSds(sdModel6_L4)
 
-meanL5_sdModel6 <- colMeans(sdModel6_L5[1:1000,])
-sdL5_sdModel6 <- colSds(sdModel6_L5[1:1000,])
+meanL5_sdModel6 <- colMeans(sdModel6_L5)
+sdL5_sdModel6 <- colSds(sdModel6_L5)
 
 par(mfrow=c(3,2))
 {
