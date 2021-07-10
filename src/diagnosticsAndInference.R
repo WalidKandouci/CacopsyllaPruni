@@ -7,9 +7,10 @@ library(nimbleTempDev)
 ########################
 ## Set some constants ##
 ########################
-SDmodel = 5 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
-nTemps  = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
-thin    = 10
+SDmodel               = 1 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
+nTemps                = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
+thin                  = 10
+nMcmcSamples          = 10 # 1000
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ## ###########################################
@@ -74,16 +75,17 @@ samples2 = samples2[-burn,]
 (paraNames = gsub("\\..*","", colnames(samples)) %>% unique()) # Names of parameter nodes
 (depNodes  = gsub("\\[.*","", cPsyllid$getDependencies(paraNames, self = FALSE, includeData = FALSE)) %>% unique())
 
-#################################################
-## Plot stages: step 1, construct pStage array ##
-#################################################
-
-nMcmcSamples = 10 # 1000
-pStage = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
-
+#####################################################################
+## Plot population stage structure: step 1, construct pStage array ##
+#####################################################################
+pStage       = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
+devLogMeanSD = array(NA, dim = c(nMcmcSamples, nStagesTot, lTempVec, 2))
+devMean      = array(NA, dim = c(nMcmcSamples, nStagesTot, lTempVec))
+devStdev     = array(NA, dim = c(nMcmcSamples, nStagesTot, lTempVec))
 for (iMCMC in 1:nMcmcSamples) {
-  print(iMCMC)
+  nimPrint("iMCMC = ", iMCMC)
   iRow    = sample(nrow(samples),1)                          # Index for a random row. Later this can be replaced by a loop.
+  ## Reparameterise model
   for (ii in 1:length(paraNames)) {                            # A loop to fill each parameter node of the model that can handle alternative sets of parameter names
     myCommand = paste0("cPsyllid$", paraNames[ii], " = as.numeric(samples[iRow, grep(paraNames[ii],colnames(samples))])")
     eval(parse(text= myCommand))
@@ -91,7 +93,11 @@ for (iMCMC in 1:nMcmcSamples) {
     ## cPsyllid$shapeSD
     ## samples[iRow, grep("shapeSD",colnames(samples))]
   }
+  ## Update dependant nods
   simulate(cPsyllid, depNodes) # Updates "paras" "devKernel" "states" "pStage"
+  #######################################################
+  ## Loop on trees to extract pStage at each time step ##
+  #######################################################
   for(iTree in 1:nTrees){
     for (iStage in 1:nStagesTot){
       #plot(cPsyllid$states[iTree, iStage, substage],type='l', col="grey", xlab="time", ylab="dev")
@@ -108,8 +114,19 @@ for (iMCMC in 1:nMcmcSamples) {
       ## So first construct pStage (the proportion of the population in each stage)
       ## Then plot it... but also think about how you will handle multiple lines of MCMC output (& will you use lines with transparency or polygons for showing CIs?)
     }
-    #browser()
-    pStage[iMCMC,1:nSteps,iTree,] = pStage[iMCMC,1:nSteps,iTree,]/ rowSums(pStage[iMCMC,1:nSteps,iTree,])
+    #
+    ## if (any(rowSums(pStage[iMCMC,1:nSteps,iTree,])!=1)) {
+    ## print( max(1 - rowSums(pStage[iMCMC,1:nSteps,iTree,])) )
+    pStage[iMCMC,1:nSteps,iTree,] = pStage[iMCMC,1:nSteps,iTree,] / rowSums(pStage[iMCMC,1:nSteps,iTree,])
+    ## }
+  }
+  ####################################################################
+  ## Loop on stages to extract mean development at each temperature ##
+  ####################################################################
+  for (iStage in 1:nStagesDev){
+    devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2] = t(apply(cPsyllid$paras[iStage,1:lTempVec,1:2], 1, "meanSd2logMeanSd"))
+    devMean[iMCMC,iStage,1:lTempVec]  = cPsyllid$paras[iStage,1:lTempVec,1] ## mean  of development kernel
+    devStdev[iMCMC,iStage,1:lTempVec] = cPsyllid$paras[iStage,1:lTempVec,2] ## stdev of development kernel
   }
 }
 
@@ -124,7 +141,6 @@ for (iMCMC in 1:nMcmcSamples) {
 ##   pStage[iMCMC,1:nSteps,iTree,]
 ## }
 
-
 ## plot(pStage[iMCMC,1:nSteps,iTree,iStage]~meteo$date[iMeteo], type='n',ylim = c(0,1),xlab = "time", ylab= "proportion")
 ## for(iStage in 1:nStagesTot){
 ##   quant = apply(pStage[,1:nSteps,iTree,iStage], 2, "quantile", prob=c(0.025,0.5,0.975))
@@ -134,9 +150,9 @@ for (iMCMC in 1:nMcmcSamples) {
 ##   pStage[iMCMC,1:nSteps,iTree,]
 ## }
 
-####################################################
-## Plot stages: step 2, plot info in pStage array ##
-####################################################
+########################################################################
+## Plot population stage structure: step 2, plot info in pStage array ##
+########################################################################
 pdf(file = here(paste0("APT/",samplesFileStem, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
   iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
@@ -173,149 +189,78 @@ for(iTree in 1:nTrees) {
 }
 dev.off()
 
-############################
-## Plot the Briere curves ##
-############################
-if (FALSE) { # TRUE
-  par(mfrow=n2mfrow(Const$nStagesDev))
-  for (stage in 1:Const$nStagesDev){
-    ttemp = -20:60
-    quant = apply(paras[stage,iTemp,2],2, "quantile",prob = c(0.025, 0.5, 0.975))
-    plot(ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]),
-         type = 'n', xlab = "time",ylab = "proportion")
-    polygon(
-      x = c(ttemp, rev(ttemp)),
-      y = c(quant[1, ], rev(quant[3, ])),
-      col = adjustcolor("red", alpha.f = 0.25),
-      border = NA
-    )
-    lines(ttemp, ttemp,stBriere(T=-20:60, Tmin=cPsyllid$Tmin[stage], Tmax=cPsyllid$Tmax[stage], amplitude=cPsyllid$amplitudeMean[stage], shape=cPsyllid$shapeMean[stage]),
-          col="red",lwd=1.5)
-  }
-}
 
 
-################################################################################
-################################################################################
 
-curve(stBriere(x,Tmin=samples$Tmax.1.[1],Tmax=samples$Tmin.1.[1],shape=samples$logit_shapeMean.1.[1],amplitude=exp(samples$logit_amplitudeMean.1.[1])), -10,60, n=1001, ylab="Development", xlab="Temperature")
+#######################################################################
+## Plot continuous representation of development kernel as quantiles ##
+#######################################################################
 
-polygon(
-  x = c(ttemp, rev(ttemp)),
-  y = c(stBriere(x,
-                 Tmin=(mean(samples$Tmax.1.)-sd(samples$Tmax.1.)), ## DP: that looks wrong
-                 Tmax=samples$Tmin.1.[1],                          ## DP: This also looks wrong
-                 shape=samples$logit_shapeMean.1.[1],
-                 amplitude=exp(samples$logit_amplitudeMean.1.[1])), rev(quant[3, ])),
-  col = adjustcolor("red", alpha.f = 0.25),
-  border = NA
-)
+## devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2] =
+##               t(apply(cPsyllid$paras[iStage,1:lTempVec,1:2], 1, "meanSd2logMeanSd"))
+## devMean[iMCMC,iStage,1:lTempVec]  = cPsyllid$paras[iStage,1:lTempVec,1]
+## devStdev[iMCMC,iStage,1:lTempVec] = cPsyllid$paras[iStage,1:lTempVec,2]
 
-#############
-## To plot ##
-#############
-library(matrixStats)  # for the sdMeans function
-#### samples <- read.csv("C:/Users/Walid/Desktop/model6_3636152_Jul-_3_1934_Temps4.txt", sep="") ## DP: This is just repeating what is done on line 61, but is less elegent. Here you must copy and paste a file name, whereas line 61 will work conditionally on SDmodel (defined at start of script).
 
-mcmcBriere_Oeuf <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
-mcmcBriere_L1   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
-mcmcBriere_L2   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
-mcmcBriere_L3   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
-mcmcBriere_L4   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
-mcmcBriere_L5   <- matrix(NA, nrow=dim(samples)[1], ncol = length(-80:80))
+cbind(tempVec, devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2])
 
-for (i in 1: dim(samples)[1]){
-  mcmcBriere_Oeuf[i,] <- stBriere(-80:80,
-                             Tmin=samples$Tmin.1.[i],
-                             Tmax=samples$Tmax.1.[i],
-                             shape=ilogit(samples$logit_shapeMean.1.[i]),
-                             amplitude=ilogit(samples$logit_amplitudeMean.1.[i]))
-  mcmcBriere_L1[i,]   <- stBriere(-80:80,
-                                  Tmin=samples$Tmin.2.[i],
-                                  Tmax=samples$Tmax.2.[i],
-                                  shape=ilogit(samples$logit_shapeMean.2.[i]),
-                                  amplitude=ilogit(samples$logit_amplitudeMean.2.[i]))
-  mcmcBriere_L2[i,]   <- stBriere(-80:80,
-                                  Tmin=samples$Tmin.3.[i],
-                                  Tmax=samples$Tmax.3.[i],
-                                  shape=ilogit(samples$logit_shapeMean.3.[i]),
-                                  amplitude=ilogit(samples$logit_amplitudeMean.3.[i]))
-  mcmcBriere_L3[i,]   <- stBriere(-80:80,
-                                  Tmin=samples$Tmin.4.[i],
-                                  Tmax=samples$Tmax.4.[i],
-                                  shape=ilogit(samples$logit_shapeMean.4.[i]),
-                                  amplitude=ilogit(samples$logit_amplitudeMean.4.[i]))
-  mcmcBriere_L4[i,]   <- stBriere(-80:80,
-                                  Tmin=samples$Tmin.5.[i],
-                                  Tmax=samples$Tmax.5.[i],
-                                  shape=ilogit(samples$logit_shapeMean.5.[i]),
-                                  amplitude=ilogit(samples$logit_amplitudeMean.5.[i]))
-  mcmcBriere_L5[i,]   <- stBriere(-80:80,
-                                  Tmin=samples$Tmin.6.[i],
-                                  Tmax=samples$Tmax.6.[i],
-                                  shape=ilogit(samples$logit_shapeMean.6.[i]),
-                                  amplitude=ilogit(samples$logit_amplitudeMean.6.[i]))
-}
+xyz = apply(devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2], 1, function(x) qlnorm(p=c(0.01, 0.5, 0.99), x[1], x[2]))
+plot(tempVec, xyz[3,], typ="l", ylim=c(0, max(xyz)))
+lines(tempVec, devMean[iMCMC,iStage,1:lTempVec])
 
-meanOeuf <- colMeans(mcmcBriere_Oeuf[1:1000,])
-sdOeuf   <- colSds(as.matrix(mcmcBriere_Oeuf[1:1000,]))
+lines(tempVec, xyz[1,])
+lines(tempVec, xyz[2,])
 
-meanL1 <- colMeans(mcmcBriere_L1[1:1000,])
-sdL1   <- colSds(mcmcBriere_L1[1:1000,])
+devMean[iMCMC,iStage,1:lTempVec]
+qlnorm(p=c(0.01, 0.5, 0.99), -16.43441, 5.398823)
+summary(rlnorm(n=1E4, -16.43441, 5.398823))
 
-meanL2 <- colMeans(mcmcBriere_L2[1:1000,])
-sdL2   <- colSds(mcmcBriere_L2[1:1000,])
-
-meanL3 <- colMeans(mcmcBriere_L3[1:1000,])
-sdL3   <- colSds(mcmcBriere_L3[1:1000,])
-
-meanL4 <- colMeans(mcmcBriere_L4[1:1000,])
-sdL4   <- colSds(mcmcBriere_L4[1:1000,])
-
-meanL5 <- colMeans(mcmcBriere_L5[1:1000,])
-sdL5   <- colSds(mcmcBriere_L5[1:1000,])
-
+# pdf(file = here(paste0("figures/model",SDmodel,"_devKernelContinuous.pdf")))
 par(mfrow=c(3,2))
 {
   # Oeuf
-  plot(-80:80,meanOeuf,xlim=c(0,40),ylim=c(0,0.035),main="Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+
+  d
+  devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2]
+
+  devMean[iMCMC,iStage,1:lTempVec]
+  devStdev[iMCMC,iStage,1:lTempVec]
+
+
+  plot(-80:80,meanOeuf,main="Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanOeuf-sdOeuf),rev(meanOeuf+sdOeuf)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanOeuf,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L1
-  plot(-80:80,xlim=c(-10,60),ylim=c(0,0.3),meanL1,main="Stade L1",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL1,main="Stade L1",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL1-sdL1),rev(meanL1+sdL1)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL1,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L2
-  plot(-80:80,meanL2,xlim=c(-10,30),ylim=c(0,0.07),main="Stade L2",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL2,main="Stade L2",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL2-sdL2),rev(meanL2+sdL2)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL2,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L3
-  plot(-80:80,xlim=c(0,40),ylim=c(0,0.053),meanL3,main="Stade L3",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL3,main="Stade L3",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL3-sdL3),rev(meanL3+sdL3)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL3,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L4
-  plot(-80:80,xlim=c(0,30),ylim=c(0,0.055),meanL4,main="Stade L4",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL4,main="Stade L4",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL4-sdL4),rev(meanL4+sdL4)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL4,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
   # L5
-  plot(-80:80,meanL5,xlim=c(-20,40),ylim=c(0,0.02),main="Stade L5",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+  plot(-80:80,meanL5,main="Stade L5",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
   polygon(c(-80:80,rev(-80:80)),c((meanL5-sdL5),rev(meanL5+sdL5)),col = "springgreen", border = "springgreen",lwd=3)
   lines(-80:80,meanL5,lty="solid",col="black",lwd=1.5)
   axis(1, col = 'black')
   axis(2, col = 'black')
 }
-
-## DP comments
-## The above is not too bad, although it could be improved by
-## 1) not hard-wiring xlim and ylim - ideally the code can deduce good values based on the curves or polygons
-## 2) You repeat everything for each stage... that's a lot of code to check and verify. It is a good exercise to put all that repetition inside a loop - it makes for more compact code.
+## dev.off()
