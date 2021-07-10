@@ -1,5 +1,5 @@
 ## rm(list=ls())
-## source(here("src/diagnosticsAndInference.R"))
+## source(here::here("src/diagnosticsAndInference.R"))
 library(here)
 library(dplyr)
 library(nimbleTempDev)
@@ -7,11 +7,12 @@ library(nimbleTempDev)
 ########################
 ## Set some constants ##
 ########################
-SDmodel               = 6 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel               = 6 # 3 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
 nTemps                = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin                  = 10
-nMcmcSamples          = 10 # 1000
+nMcmcSamples          = 100 # 1000
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
+nimPrint("model = ", SDmodel)
 
 ## ###########################################
 ## Take arguments from script, if available ##
@@ -59,7 +60,7 @@ cPsyllid = compileNimble(rPsyllid)
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samplesFileStem = sub(aptOutputFile, pat=".txt",rep="")
+samplesFileStem = sub(aptOutputFile, pat=".txt",rep="") %>% sub(pattern="-", rep="")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
 
@@ -162,7 +163,7 @@ for (ii in 1:111) {
 ## Plot population stage structure   ##
 ## STEP 2: plot info in pStage array ##
 #######################################
-pdf(file = here(paste0("figures/",samplesFileStem, "_proportions.pdf")))
+pdf(file = here( paste0("figures/",samplesFileStem, "_nMCMC-",nMcmcSamples, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
   iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
   nSteps = length(iMeteo)
@@ -290,7 +291,7 @@ for (iStage in 1:nStagesDev) {
 devMean[iMCMC,iStage,1:lTempVec]
 EdevMean[iStage,1:lTempVec]
 
-pdf(here::here(paste0("figures/model",SDmodel, "_devKernels.pdf")))
+pdf(here::here(paste0("figures/model",SDmodel, "_nMcmc-",nMcmcSamples,"_devKernels.pdf")))
 for (iStage in 1:nStagesDev) {
   meanQuantCols = c("red", "blue")
   meanQuantCICols = meanQuantCols
@@ -316,38 +317,38 @@ dev.off()
 
 
 
+stop()
+
+## plot(tempVec, EdevQuantiles[iStage,,iQuant], typ="l", ylim=c(0, max(EdevQuantiles[iStage,,])),
+
+## lines(tempVec, devMean[iMCMC,iStage,1:lTempVec])
+
+## lines(tempVec, xyz[1,])
+## lines(tempVec, xyz[2,])
+
+## devMean[iMCMC,iStage,1:lTempVec]
+## qlnorm(p=c(0.01, 0.5, 0.99), -16.43441, 5.398823)
+## summary(rlnorm(n=1E4, -16.43441, 5.398823))
+
+## # pdf(file = here(paste0("figures/model",SDmodel,"_devKernelContinuous.pdf")))
+## par(mfrow=c(3,2))
+## for (iStage in 1:nStagesDev) {
+##   for (iQuant in 1:nQuantiles) {
+##     image(devKernelQuantiles[iQuant,iStage,,])
+
+##   apply(devKernel[1:nMcmcSamples,iStage,iTemp,1:(res+1)], MARGIN=2, FUN=quantile, p=pVec)
 
 
-plot(tempVec, EdevQuantiles[iStage,,iQuant], typ="l", ylim=c(0, max(EdevQuantiles[iStage,,])),
+##   devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2]
 
-lines(tempVec, devMean[iMCMC,iStage,1:lTempVec])
-
-lines(tempVec, xyz[1,])
-lines(tempVec, xyz[2,])
-
-devMean[iMCMC,iStage,1:lTempVec]
-qlnorm(p=c(0.01, 0.5, 0.99), -16.43441, 5.398823)
-summary(rlnorm(n=1E4, -16.43441, 5.398823))
-
-# pdf(file = here(paste0("figures/model",SDmodel,"_devKernelContinuous.pdf")))
-par(mfrow=c(3,2))
-for (iStage in 1:nStagesDev) {
-  for (iQuant in 1:nQuantiles) {
-    image(devKernelQuantiles[iQuant,iStage,,])
-
-  apply(devKernel[1:nMcmcSamples,iStage,iTemp,1:(res+1)], MARGIN=2, FUN=quantile, p=pVec)
+##   devMean[iMCMC,iStage,1:lTempVec]
+##   devStdev[iMCMC,iStage,1:lTempVec]
 
 
-  devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2]
-
-  devMean[iMCMC,iStage,1:lTempVec]
-  devStdev[iMCMC,iStage,1:lTempVec]
-
-
-  plot(-80:80,meanOeuf,main="Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
-  polygon(c(-80:80,rev(-80:80)),c((meanOeuf-sdOeuf),rev(meanOeuf+sdOeuf)),col = "springgreen", border = "springgreen",lwd=3)
-  lines(-80:80,meanOeuf,lty="solid",col="black",lwd=1.5)
-  axis(1, col = 'black')
-  axis(2, col = 'black')
-}
-## dev.off()
+##   plot(-80:80,meanOeuf,main="Stade oeuf",xlab="température",ylab="devRate",type = "n",xaxs = "i",yaxs = "i")
+##   polygon(c(-80:80,rev(-80:80)),c((meanOeuf-sdOeuf),rev(meanOeuf+sdOeuf)),col = "springgreen", border = "springgreen",lwd=3)
+##   lines(-80:80,meanOeuf,lty="solid",col="black",lwd=1.5)
+##   axis(1, col = 'black')
+##   axis(2, col = 'black')
+## }
+## ## dev.off()
