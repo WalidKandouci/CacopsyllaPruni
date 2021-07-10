@@ -1,18 +1,24 @@
 ## rm(list=ls())
 ## source(here::here("src/diagnosticsAndInference.R"))
-library(here)
-library(dplyr)
-library(nimbleTempDev)
 
 ########################
 ## Set some constants ##
 ########################
 SDmodel               = 6 # 3 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
+## source(here::here("src/diagnosticsAndInference.R"))
 nTemps                = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin                  = 10
 nMcmcSamples          = 100 # 1000
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
+
+###############
+## Libraries ##
+###############
+library(here)
+library(dplyr)
+library(nimbleTempDev)
 nimPrint("model = ", SDmodel)
+
 
 ## ###########################################
 ## Take arguments from script, if available ##
@@ -60,7 +66,7 @@ cPsyllid = compileNimble(rPsyllid)
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
-samplesFileStem = sub(aptOutputFile, pat=".txt",rep="") %>% sub(pattern="-", rep="")
+samplesFileStem = sub(aptOutputFile, pat=".txt",rep="")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
 
@@ -163,6 +169,7 @@ for (ii in 1:111) {
 ## Plot population stage structure   ##
 ## STEP 2: plot info in pStage array ##
 #######################################
+samplesFileStem <- samplesFileStem %>% sub(pat="-", rep="")
 pdf(file = here( paste0("figures/",samplesFileStem, "_nMCMC-",nMcmcSamples, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
   iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
