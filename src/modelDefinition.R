@@ -24,8 +24,6 @@ setwd(baseDir)
 load("data/data4nimble.Rdata")
 ## source("src/functions.R")   ## Currently not using any of these funcitons
 
-#data4
-
 if (!exists("setConstantsElsewhere")) { ## This flag permits other scripts (which source this script) to set the following constants
   SDmodel = 1 # 2, 3, 4, 5
 }
@@ -161,30 +159,34 @@ Const             = list(
   tauBeta0        = 1E-11
 )
 
+###############################
+## List available APT output ##
+###############################
+(aptOutputFiles = sort(dir(here("APT/"), pattern="*Temps4.txt")))
+(aptOutputFile = aptOutputFiles[SDmodel])
+if (length(aptOutputFiles)!=6)
+  stop("Wrong number of APT output files detected.")
+
 ##############################################
 ## Initial (prior to MCMC) parameter values ##
 ##############################################
-fileStem         = paste0("model",SDmodel, "_")
-previousMCMCfile = here("APT/model1_3636147_Jul-_8_0114_Temps4.txt") ## Jun-18_19-38-37_2021_Temps4.txt
-previous         = read.table(previousMCMCfile, header=TRUE)
+fileStem         = sub(".txt", "", aptOutputFile)
+previous         = read.table(here("APT",aptOutputFile), header=TRUE)
 previous         = previous[-round(1:nrow(previous)/2),] # Remove 1/2 the samples as burn-in
-##
-previousSampScale = previous
-previousSampScale[,-grep("T", colnames(previous))] = logit(previousSampScale[,-grep("T", colnames(previous))])
 ##
 previous = previous %>% tail(1)
 
 Inits = list(
   ## Last values retrned from a previous run
-  Tmin                = previous %>% select(grep("Tmin",          colnames(previous))) %>% as.numeric(),
-  Tmax                = previous %>% select(grep("Tmax",          colnames(previous))) %>% as.numeric(),
+  Tmin = previous %>% select(grep("Tmin", colnames(previous))) %>% as.numeric(),
+  Tmax = previous %>% select(grep("Tmax", colnames(previous))) %>% as.numeric(),
   ## For SDmodel == 1
-  logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% logit() %>% as.numeric(),
-  logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% logit() %>% as.numeric(),
+  logit_amplitudeMean = previous %>% select(grep("amplitudeMean", colnames(previous))) %>% as.numeric(),
+  logit_shapeMean     = previous %>% select(grep("shapeMean",     colnames(previous))) %>% as.numeric(),
   ## For SDmodel == 2
-  beta0      = rep(1, nStagesDev),     # 1 for models 1 3 5
-  beta1      = rep(1E-11, nStagesDev),
-  beta2      = rep(1E-11, nStagesDev),
+  beta0      = previous %>% select(grep("beta0", colnames(previous))) %>% as.numeric(),
+  beta1      = previous %>% select(grep("beta1", colnames(previous))) %>% as.numeric(),
+  beta2      = previous %>% select(grep("beta2", colnames(previous))) %>% as.numeric(),
   log_scaleBeta1 = log((1/nStagesDev) / (1/2)), # Mean = shape / rate (gamma distribution)
   log_scaleBeta2 = log((1/nStagesDev) / (1/2))  # Mean = shape / rate (gamma distribution)
 )
