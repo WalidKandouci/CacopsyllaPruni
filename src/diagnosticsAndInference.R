@@ -63,6 +63,10 @@ samplesFileStem = sub(aptOutputFile, pat=".txt",rep="")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
 
+## nrow(samples[!duplicated(samples),])
+## sum(duplicated(samples))
+## nrow(samples[!duplicated(samples),])
+
 ####################
 ## Remove burn-in ##
 ####################
@@ -117,12 +121,22 @@ for (iMCMC in 1:nMcmcSamples) {
   ## Loop on stages to extract mean development at each temperature ##
   ####################################################################
   for (iStage in 1:nStagesDev){
-    devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2] = t(apply(cPsyllid$paras[iStage,1:lTempVec,1:2], 1, "meanSd2logMeanSd"))
+    devLogMeanSD[iMCMC,iStage,1:lTempVec,1:2] = t(apply(cPsyllid$paras[iStage,1:lTempVec,1:2], 1, "meanSd2logMeanSd"))
     devMean[iMCMC,iStage,1:lTempVec]  = cPsyllid$paras[iStage,1:lTempVec,1] ## mean  of development kernel
     devStdev[iMCMC,iStage,1:lTempVec] = cPsyllid$paras[iStage,1:lTempVec,2] ## stdev of development kernel
     devKernel[iMCMC,iStage,1:lTempVec, 1:(res+1)] = cPsyllid$devKernel[iStage,1:lTempVec,1:(res+1)]
   }
 }
+
+for (ii in 1:111) {
+  nimPrint("iStage: ",iStage <- sample(nStagesDev, 1))
+  nimPrint("iTemp: ",iTemp  <- 31) # sample(lTempVec, 1))
+  nimPrint("Dup devMean: ", sum(duplicated(devMean[,iStage,iTemp])))
+  nimPrint("Dup devStdev: ",sum(duplicated(devStdev[,iStage,iTemp])))
+  nimPrint("Dup devLogMean: ", sum(duplicated(devLogMeanSD[,iStage,iTemp,1])))
+  nimPrint("Dup devLogStdv: ", sum(duplicated(devLogMeanSD[,iStage,iTemp,2])))
+}
+
 
 ## iMCMC = 1
 ## iStage = 1
@@ -200,8 +214,8 @@ for (iStage in 1:nStagesDev) {
   for (iTemp in 1:lTempVec) {
     # Compute quantiles
     devKernelQuantiles[,iStage,iTemp,] = apply(devKernel[1:nMcmcSamples,iStage,iTemp,1:(res+1)], MARGIN=2, FUN=quantile, p=c(0.01, 0.5, 0.99))
-    devKernelMean[iStage,iTemp,]   = apply(devKernel[1:nMcmcSamples,iStage,iTemp,1:(res+1)], MARGIN=2, FUN=mean)
-    devKernelStdv[iStage,iTemp,]   = apply(devKernel[1:nMcmcSamples,iStage,iTemp,1:(res+1)], MARGIN=2, FUN=sd)
+    devKernelMean[iStage,iTemp,]       = apply(devKernel[1:nMcmcSamples,iStage,iTemp,1:(res+1)], MARGIN=2, FUN=mean)
+    devKernelStdv[iStage,iTemp,]       = apply(devKernel[1:nMcmcSamples,iStage,iTemp,1:(res+1)], MARGIN=2, FUN=sd)
   }
 }
 
@@ -232,20 +246,80 @@ multiplot(plotList[[1]],plotList[[2]],plotList[[3]],plotList[[4]],plotList[[5]],
 # devStdev[iMCMC,iStage,1:lTempVec] = cPsyllid$paras[iStage,1:lTempVec,2] ## stdev of development kernel
 
 ## Quantiles for each line of MCMC
+pVec = c(0.01, 0.5, 0.99)
 devQuantiles  = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec, nQuantiles))
-EdevQuantiles = array(NA, dim = c(nStagesDev, lTempVec, nQuantiles))
-for (iStage in 1:nStagesDev)
-  for (iMcmc in 1:nMcmcSamples)
-    devQuantiles[iMcmc,iStage,,] = t(apply(devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2], 1, function(x) qlnorm(p=pVec, x[1], x[2])))
+devQuantiles2 = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec, nQuantiles))
+for (iStage in 1:nStagesDev) {
+  for (iMcmc in 1:nMcmcSamples) {
+    devQuantiles[iMcmc,iStage,1:lTempVec,1:nQuantiles] = t(apply(devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2], 1, function(x) qlnorm(p=pVec, x[1], x[2])))
+    for (iTemp in 1:lTempVec) {
+      devQuantiles2[iMcmc,iStage,iTemp,1:nQuantiles] = qlnorm(p=pVec, devLogMeanSD[iMCMC, iStage, iTemp, 1], devLogMeanSD[iMCMC, iStage, iTemp, 2])
+    }
+  }
+}
+## Check for NAs
+sum(is.na(devQuantiles))
+## Check for differences
+sum(devQuantiles != devQuantiles2)
 
-## Expected quantiles
-for (iStage in 1:nStagesDev)
-  for (iTemp in 1:nTemps)
-    EdevQuantiles[iStage,iTemp,] = devQuantiles[,iStage,iTemp,] %>% colMeans()
+# Compare devQuantiles & devQuantiles2
+(iStage = sample(nStagesDev,1))
+(iTemp  = sample(lTempVec,1))
+devQuantiles[,iStage,iTemp,1:nQuantiles]
+devQuantiles2[,iStage,iTemp,1:nQuantiles]
+devLogMeanSD[, iStage, , 1:2]
+qlnorm(pVec[1], devLogMeanSD[, iStage, iTemp, 1], devLogMeanSD[, iStage, iTemp, 2])
 
-iStage = 3
-iQuant = 3
-plot(tempVec, EdevQuantiles[iStage,,iQuant], typ="l", ylim=c(0, max(EdevQuantiles[iStage,,])))
+## Expected quantiles and mean of development
+EdevMean       = array(NA, dim = c(nStagesDev, lTempVec))
+CIdevMean      = array(NA, dim = c(nStagesDev, lTempVec, 2))
+EdevQuantiles  = array(NA, dim = c(nStagesDev, lTempVec, nQuantiles))
+CIdevQuantiles = array(NA, dim = c(nStagesDev, lTempVec, nQuantiles, 2))
+for (iStage in 1:nStagesDev) {
+  EdevMean[iStage,1:lTempVec]      = devMean[,iStage,1:lTempVec] %>% colMeans()
+  CIdevMean[iStage,1:lTempVec,1:2] = t(apply(devMean[,iStage,1:lTempVec], 2, quantile, p=c(0.025,0.975)) )
+    for (iTemp in 1:lTempVec) {
+      EdevQuantiles[iStage,iTemp,]     = devQuantiles[,iStage,iTemp,] %>% colMeans()
+      CIdevQuantiles[iStage,iTemp,1:nQuantiles,1:2] = t(apply(devQuantiles[,iStage,iTemp,], 2, quantile, p=c(0.025,0.975)))
+    }
+}
+
+######################################
+## Plot devMean as function of temp ##
+######################################
+devMean[iMCMC,iStage,1:lTempVec]
+EdevMean[iStage,1:lTempVec]
+
+pdf(here::here(paste0("figures/model",SDmodel, "_devKernels.pdf")))
+for (iStage in 1:nStagesDev) {
+  meanQuantCols = c("red", "blue")
+  meanQuantCICols = meanQuantCols
+  meanQuantCICols[1] = adjustcolor(meanQuantCICols[1], alpha.f = 0.60)
+  meanQuantCICols[2] = adjustcolor(meanQuantCICols[2], alpha.f = 0.05)
+  #
+  plot(tempVec, EdevMean[iStage,1:lTempVec], typ="l",
+       ylab="Development", xlab="Temperature",
+       col=meanQuantCols[1],
+       lwd=3,
+       ylim=c(0, max(CIdevMean[iStage,,])),
+       #     ylim=c(0, max(CIdevQuantiles)),
+       main=paste("Stage", iStage)
+       )
+  abline(h=0, col="grey")
+  polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,1],rev(CIdevQuantiles[iStage,1:lTempVec,3,1])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,2],rev(CIdevQuantiles[iStage,1:lTempVec,3,2])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  polygon(c(tempVec,rev(tempVec)),c(CIdevMean[iStage,1:lTempVec,1],rev(CIdevMean[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1])
+  ## lines(tempVec, CIdevMean[iStage,1:lTempVec,1], lty=2, col=meanQuantCols[1])
+  ## lines(tempVec, CIdevMean[iStage,1:lTempVec,2], lty=2, col=meanQuantCols[1])
+}
+dev.off()
+
+
+
+
+
+plot(tempVec, EdevQuantiles[iStage,,iQuant], typ="l", ylim=c(0, max(EdevQuantiles[iStage,,])),
+
 lines(tempVec, devMean[iMCMC,iStage,1:lTempVec])
 
 lines(tempVec, xyz[1,])
