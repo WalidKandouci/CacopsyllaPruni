@@ -18,7 +18,7 @@ library(here)
 library(dplyr)
 library(nimbleTempDev)
 nimPrint("model = ", SDmodel)
-
+source(here::here("src/functions.R"))
 
 ## ###########################################
 ## Take arguments from script, if available ##
@@ -66,6 +66,9 @@ cPsyllid = compileNimble(rPsyllid)
 ###############################################
 ## Load APT output to analyse in this script ##
 ###############################################
+nimPrint("###############")
+nimPrint("READING SAMPLES")
+nimPrint("###############")
 samplesFileStem = sub(aptOutputFile, pat=".txt",rep="")
 samples  = read.table(here(paste0("APT/",samplesFileStem,".txt")), header=TRUE)
 samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header=TRUE)
@@ -91,6 +94,9 @@ samples2 = samples2[-burn,]
 ## Plot population stage structure ##
 ## STEP 1: construct pStage array  ##
 #####################################
+nimPrint("#################")
+nimPrint("LOOP ON MCMC ROWS")
+nimPrint("#################")
 pStage       = array(NA, dim = c(nMcmcSamples, lMeteo, nTrees, nStagesTot)) # This will be a ragged array - i.e. nSteps[tree] is heterogeneous, so some elements of this array will remain as NAs
 devLogMeanSD = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec, 2))
 devMean      = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec))
@@ -135,15 +141,16 @@ for (iMCMC in 1:nMcmcSamples) {
   }
 }
 
-for (ii in 1:111) {
-  nimPrint("iStage: ",iStage <- sample(nStagesDev, 1))
-  nimPrint("iTemp: ",iTemp  <- 31) # sample(lTempVec, 1))
-  nimPrint("Dup devMean: ", sum(duplicated(devMean[,iStage,iTemp])))
-  nimPrint("Dup devStdev: ",sum(duplicated(devStdev[,iStage,iTemp])))
-  nimPrint("Dup devLogMean: ", sum(duplicated(devLogMeanSD[,iStage,iTemp,1])))
-  nimPrint("Dup devLogStdv: ", sum(duplicated(devLogMeanSD[,iStage,iTemp,2])))
+if (FALSE) {
+  for (ii in 1:111) {
+    nimPrint("iStage: ",iStage <- sample(nStagesDev, 1))
+    nimPrint("iTemp: ",iTemp  <- 31) # sample(lTempVec, 1))
+    nimPrint("Dup devMean: ", sum(duplicated(devMean[,iStage,iTemp])))
+    nimPrint("Dup devStdev: ",sum(duplicated(devStdev[,iStage,iTemp])))
+    nimPrint("Dup devLogMean: ", sum(duplicated(devLogMeanSD[,iStage,iTemp,1])))
+    nimPrint("Dup devLogStdv: ", sum(duplicated(devLogMeanSD[,iStage,iTemp,2])))
+  }
 }
-
 
 ## iMCMC = 1
 ## iStage = 1
@@ -169,6 +176,9 @@ for (ii in 1:111) {
 ## Plot population stage structure   ##
 ## STEP 2: plot info in pStage array ##
 #######################################
+nimPrint("####################")
+nimPrint("PLOTTING PROPORTIONS")
+nimPrint("####################")
 samplesFileStem <- samplesFileStem %>% sub(pat="-", rep="")
 pdf(file = here( paste0("figures/",samplesFileStem, "_nMCMC-",nMcmcSamples, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
@@ -212,6 +222,9 @@ dev.off()
 ## Reduce dimension on uncertainty repressentation ##
 ## i.e. nMcmcSamples -> nQuantiles                 ##
 #####################################################
+nimPrint("#################################")
+nimPrint("DIMENSION REDUCTION FOR DEVKERNEL")
+nimPrint("#################################")
 pVec = c(0.01, 0.5, 0.99)
 nQuantiles = length(pVec)
 devKernelQuantiles = array(NA, dim = c(nQuantiles, nStagesDev, lTempVec, res+1))
@@ -231,8 +244,10 @@ for (iStage in 1:nStagesDev) {
 #######################################################################
 ## Plot discrete representation of development kernel - not pretty!! ##
 #######################################################################
+nimPrint("#########################")
+nimPrint("DISCRETE KERNEL MULTIPLOT")
+nimPrint("#########################")
 library(ggplot2)
-
 plotList = vector("list", 6)
 for (iStage in 1:6) {
   meltDevKernMean = reshape::melt(devKernelMean[iStage,,])
@@ -254,6 +269,9 @@ multiplot(plotList[[1]],plotList[[2]],plotList[[3]],plotList[[4]],plotList[[5]],
 # devStdev[iMCMC,iStage,1:lTempVec] = cPsyllid$paras[iStage,1:lTempVec,2] ## stdev of development kernel
 
 ## Quantiles for each line of MCMC
+nimPrint("#####################")
+nimPrint("LOOP FOR devQuantiles")
+nimPrint("#####################")
 pVec = c(0.01, 0.5, 0.99)
 devQuantiles  = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec, nQuantiles))
 devQuantiles2 = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec, nQuantiles))
@@ -279,6 +297,9 @@ devLogMeanSD[, iStage, , 1:2]
 qlnorm(pVec[1], devLogMeanSD[, iStage, iTemp, 1], devLogMeanSD[, iStage, iTemp, 2])
 
 ## Expected quantiles and mean of development
+nimPrint("######################")
+nimPrint("LOOP FOR EdevQuantiles")
+nimPrint("######################")
 EdevMean       = array(NA, dim = c(nStagesDev, lTempVec))
 CIdevMean      = array(NA, dim = c(nStagesDev, lTempVec, 2))
 EdevQuantiles  = array(NA, dim = c(nStagesDev, lTempVec, nQuantiles))
@@ -295,9 +316,11 @@ for (iStage in 1:nStagesDev) {
 ######################################
 ## Plot devMean as function of temp ##
 ######################################
+nimPrint("############")
+nimPrint("PLOT devmean")
+nimPrint("############")
 devMean[iMCMC,iStage,1:lTempVec]
 EdevMean[iStage,1:lTempVec]
-
 pdf(here::here(paste0("figures/model",SDmodel, "_nMcmc-",nMcmcSamples,"_devKernels.pdf")))
 for (iStage in 1:nStagesDev) {
   meanQuantCols = c("red", "blue")
@@ -324,7 +347,7 @@ dev.off()
 
 
 
-stop()
+
 
 ## plot(tempVec, EdevQuantiles[iStage,,iQuant], typ="l", ylim=c(0, max(EdevQuantiles[iStage,,])),
 
