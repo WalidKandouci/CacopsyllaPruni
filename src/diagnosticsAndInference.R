@@ -4,11 +4,11 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel               = 6 # 3 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel               = 2 # 2 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
 ## source(here::here("src/diagnosticsAndInference.R"))
 nTemps                = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin                  = 10
-nMcmcSamples          = 100 # 1000
+nMcmcSamples          = 1000 # 1000
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###############
@@ -80,7 +80,7 @@ samples2 = read.table(here(paste0("APT/",samplesFileStem,"_loglik.txt")), header
 ####################
 ## Remove burn-in ##
 ####################
-burn = 1:1000
+burn     = 1:1000
 samples  = samples[-burn,]
 samples2 = samples2[-burn,]
 
@@ -308,7 +308,7 @@ for (iStage in 1:nStagesDev) {
   EdevMean[iStage,1:lTempVec]      = devMean[,iStage,1:lTempVec] %>% colMeans()
   CIdevMean[iStage,1:lTempVec,1:2] = t(apply(devMean[,iStage,1:lTempVec], 2, quantile, p=c(0.025,0.975)) )
     for (iTemp in 1:lTempVec) {
-      EdevQuantiles[iStage,iTemp,]     = devQuantiles[,iStage,iTemp,] %>% colMeans()
+      EdevQuantiles[iStage,iTemp,] = devQuantiles[,iStage,iTemp,] %>% colMeans()
       CIdevQuantiles[iStage,iTemp,1:nQuantiles,1:2] = t(apply(devQuantiles[,iStage,iTemp,], 2, quantile, p=c(0.025,0.975)))
     }
 }
@@ -328,18 +328,21 @@ for (iStage in 1:nStagesDev) {
   meanQuantCICols[1] = adjustcolor(meanQuantCICols[1], alpha.f = 0.60)
   meanQuantCICols[2] = adjustcolor(meanQuantCICols[2], alpha.f = 0.05)
   #
-  plot(tempVec, EdevMean[iStage,1:lTempVec], typ="l",
-       ylab="Development", xlab="Temperature",
+  plot(tempVec,
+       EdevMean[iStage,1:lTempVec],
+       typ="l", ylab="Development", xlab="Temperature",
        col=meanQuantCols[1],
        lwd=3,
-       ylim=c(0, max(CIdevMean[iStage,,])),
-       #     ylim=c(0, max(CIdevQuantiles)),
+       # ylim=c(0, max(CIdevMean[iStage,,])),
+       ylim=c(0, min(1, max(max(EdevMean), max(EdevQuantiles)))),
        main=paste("Stage", iStage)
        )
   abline(h=0, col="grey")
   polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,1],rev(CIdevQuantiles[iStage,1:lTempVec,3,1])),col = meanQuantCICols[2], border = meanQuantCICols[2])
   polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,2],rev(CIdevQuantiles[iStage,1:lTempVec,3,2])),col = meanQuantCICols[2], border = meanQuantCICols[2])
-  polygon(c(tempVec,rev(tempVec)),c(CIdevMean[iStage,1:lTempVec,1],rev(CIdevMean[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1])
+#polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  #polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,3],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  # polygon(c(tempVec,rev(tempVec)),c(CIdevMean[iStage,1:lTempVec,1],rev(CIdevMean[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1])
   ## lines(tempVec, CIdevMean[iStage,1:lTempVec,1], lty=2, col=meanQuantCols[1])
   ## lines(tempVec, CIdevMean[iStage,1:lTempVec,2], lty=2, col=meanQuantCols[1])
 }

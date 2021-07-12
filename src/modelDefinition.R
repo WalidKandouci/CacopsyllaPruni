@@ -66,7 +66,7 @@ psyllidCode <- nimbleCode ({
     paras[stage,1:lTempVec,1] <- stBriere(T=tempVec[1:lTempVec], Tmin=Tmin[stage], Tmax=Tmax[stage], shape=shapeMean[stage], amplitude=amplitudeMean[stage]) #
     for (iTemp in 1:lTempVec) { # iTemp = index for temperature
       ## Within stage development at temperature tempVec[iTemp]
-      devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1) ## Package currently has functions getM, setM and setMultiM... but we should write a function to just return the first column of getM and work with that (because the model matrix over many stages is very sparse).
+      devKernel[stage,iTemp,1:(res+1)] <- getKernel(paras=paras[stage,iTemp,1:3], res=res, devFunction = 1)
       ## Survival
       paras[stage,iTemp,3] <- 1
       ## Standard deviation in development as a function of temperature
