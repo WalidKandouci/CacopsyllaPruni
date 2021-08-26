@@ -4,11 +4,11 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel               = 1 # 2 # 2 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel               = 6 # 2 # 2 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
 ## source(here::here("src/diagnosticsAndInference.R"))
 nTemps                = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin                  = 10
-nMcmcSamples          = 20 # 1000 # 1000
+nMcmcSamples          = 1000 # 1000
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###############
