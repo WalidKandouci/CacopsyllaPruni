@@ -4,7 +4,7 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel               = 6 # 2 # 2 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel               = 3 # 2 # 2 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
 ## source(here::here("src/diagnosticsAndInference.R"))
 nTemps                = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin                  = 10
@@ -305,26 +305,33 @@ nimPrint("LOOP FOR EdevQuantiles")
 nimPrint("######################")
 EdevMean       = array(NA, dim = c(nStagesDev, lTempVec))
 CIdevMean      = array(NA, dim = c(nStagesDev, lTempVec, 2))
+EdevSD         = array(NA, dim = c(nStagesDev, lTempVec))
+CIdevSD        = array(NA, dim = c(nStagesDev, lTempVec, 2))
 EdevQuantiles  = array(NA, dim = c(nStagesDev, lTempVec, nQuantiles))
 CIdevQuantiles = array(NA, dim = c(nStagesDev, lTempVec, nQuantiles, 2))
 for (iStage in 1:nStagesDev) {
+  ## Expected value and 95% CI for devMean
   EdevMean[iStage,1:lTempVec]      = devMean[,iStage,1:lTempVec] %>% colMeans()
   CIdevMean[iStage,1:lTempVec,1:2] = t(apply(devMean[,iStage,1:lTempVec], 2, quantile, p=c(0.025,0.975)) )
     for (iTemp in 1:lTempVec) {
       EdevQuantiles[iStage,iTemp,] = devQuantiles[,iStage,iTemp,] %>% colMeans()
       CIdevQuantiles[iStage,iTemp,1:nQuantiles,1:2] = t(apply(devQuantiles[,iStage,iTemp,], 2, quantile, p=c(0.025,0.975)))
     }
+  ## Expected value and 95% CI for devSD
+  EdevSD[iStage,1:lTempVec]      = devStdev[,iStage,1:lTempVec] %>% colMeans()
+  CIdevSD[iStage,1:lTempVec,1:2] = t(apply(devStdev[,iStage,1:lTempVec], 2, quantile, p=c(0.025,0.975)) )
 }
 
-######################################
-## Plot devMean as function of temp ##
-######################################
-nimPrint("############")
-nimPrint("PLOT devmean")
-nimPrint("############")
+########################################################################
+## Plot devMean & expected quantiles for development as function of temp
+########################################################################
+nimPrint("########################")
+nimPrint("PLOT devmean & quantiles")
+nimPrint("########################")
 devMean[iMCMC,iStage,1:lTempVec]
 EdevMean[iStage,1:lTempVec]
 pdf(here::here(paste0("figuresAug/model",SDmodel, "_nMcmc-",nMcmcSamples,"_devKernels.pdf")))
+par(cex.axis = 1.5, cex.lab = 1.5, cex.main=1.5, mar=c(5, 4.5, 4, 2))
 for (iStage in 1:nStagesDev) {
   meanQuantCols = c("red", "blue")
   meanQuantCICols = meanQuantCols
@@ -333,21 +340,92 @@ for (iStage in 1:nStagesDev) {
   #
   plot(tempVec,
        EdevMean[iStage,1:lTempVec],
-       typ="l", ylab="Development", xlab="Temperature",
+       typ="l", ylab="Development Rate", xlab="Temperature",
        col=meanQuantCols[1],
        lwd=3,
        # ylim=c(0, max(CIdevMean[iStage,,])),
-       ylim=c(0, min(1, max(max(EdevMean), max(EdevQuantiles)))),
+       ylim=c(0, min(1, max(max(EdevMean[iStage,]), max(EdevQuantiles[iStage,,])))),
        main=paste("Stage", iStage)
        )
   abline(h=0, col="grey")
   ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,1],rev(CIdevQuantiles[iStage,1:lTempVec,3,1])),col = meanQuantCICols[2], border = meanQuantCICols[2])
   ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,2],rev(CIdevQuantiles[iStage,1:lTempVec,3,2])),col = meanQuantCICols[2], border = meanQuantCICols[2])
-  polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[1], border = meanQuantCICols[1])
   ## polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
   ## polygon(c(tempVec,rev(tempVec)),c(CIdevMean[iStage,1:lTempVec,1],rev(CIdevMean[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1])
   ## lines(tempVec, CIdevMean[iStage,1:lTempVec,1], lty=2, col=meanQuantCols[1])
-  ## lines(tempVec, CIdevMean[iStage,1:lTempVec,2], lty=2, col=meanQuantCols[1])
+  lines(tempVec, EdevMean[iStage,1:lTempVec], lwd=3)
+}
+dev.off()
+
+#######################################################
+## Plot devMean only as function of temp (no quantiles)
+#######################################################
+nimPrint("############")
+nimPrint("PLOT devmean")
+nimPrint("############")
+devMean[iMCMC,iStage,1:lTempVec]
+EdevMean[iStage,1:lTempVec]
+pdf(here::here(paste0("figuresAug/model",SDmodel, "_nMcmc-",nMcmcSamples,"_devMean.pdf")))
+par(cex.axis = 1.5, cex.lab = 1.5, cex.main=1.5, mar=c(5, 4.5, 4, 2))
+for (iStage in 1:nStagesDev) {
+  meanQuantCols = c("red", "blue")
+  meanQuantCICols = meanQuantCols
+  meanQuantCICols[1] = adjustcolor(meanQuantCICols[1], alpha.f = 0.60)
+  meanQuantCICols[2] = adjustcolor(meanQuantCICols[2], alpha.f = 0.05)
+  #
+  plot(tempVec,
+       EdevMean[iStage,1:lTempVec],
+       typ="l", ylab="Expected Development Rate", xlab="Temperature",
+       col=meanQuantCols[1],
+       lwd=3,
+       # ylim=c(0, max(CIdevMean[iStage,,])),
+       ylim=c(0, min(1, max(max(EdevMean[iStage,]), max(CIdevMean[iStage,,])))),
+       main=paste("Stage", iStage)
+       )
+  abline(h=0, col="grey")
+  ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,1],rev(CIdevQuantiles[iStage,1:lTempVec,3,1])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,2],rev(CIdevQuantiles[iStage,1:lTempVec,3,2])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  polygon(c(tempVec,rev(tempVec)),c(CIdevMean[iStage,1:lTempVec,1],rev(CIdevMean[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1]) ## 95% CI on expected development rate
+  ## lines(tempVec, CIdevMean[iStage,1:lTempVec,1], lty=2, col=meanQuantCols[1])
+  lines(tempVec, EdevMean[iStage,1:lTempVec], lwd=3)
+}
+dev.off()
+
+
+#################################
+## Plot devSD as function of temp
+#################################
+nimPrint("##########")
+nimPrint("PLOT devSD")
+nimPrint("##########")
+pdf(here::here(paste0("figuresAug/model",SDmodel, "_nMcmc-",nMcmcSamples,"_devSD.pdf")))
+par(cex.axis = 1.5, cex.lab = 1.5, cex.main=1.5, mar=c(5, 4.5, 4, 2))
+for (iStage in 1:nStagesDev) {
+  meanQuantCols = c("red", "blue")
+  meanQuantCICols = meanQuantCols
+  meanQuantCICols[1] = adjustcolor(meanQuantCICols[1], alpha.f = 0.60)
+  meanQuantCICols[2] = adjustcolor(meanQuantCICols[2], alpha.f = 0.05)
+  #
+  plot(tempVec,
+       EdevSD[iStage,1:lTempVec],
+       typ="l", ylab="St.Dev. of Development Rate", xlab="Temperature",
+       col=meanQuantCols[1],
+       lwd=3,
+       # ylim=c(0, max(CIdevMean[iStage,,])),
+       ylim=c(0, max(max(EdevSD[iStage,]), max(CIdevSD[iStage,,]))),
+       main=paste("Stage", iStage)
+       )
+  abline(h=0, col="grey")
+  ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,1],rev(CIdevQuantiles[iStage,1:lTempVec,3,1])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,2],rev(CIdevQuantiles[iStage,1:lTempVec,3,2])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  polygon(c(tempVec,rev(tempVec)),c(CIdevSD[iStage,1:lTempVec,1],rev(CIdevSD[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1]) ## 95% CI on st.dev of development rate
+  ## lines(tempVec, CIdevMean[iStage,1:lTempVec,1], lty=2, col=meanQuantCols[1])
+  lines(tempVec, EdevSD[iStage,1:lTempVec], lwd=3)
 }
 dev.off()
 
