@@ -4,11 +4,11 @@
 ########################
 ## Set some constants ##
 ########################
-SDmodel               = 2 # 2 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
+SDmodel               = 1 # 2 # 2 # 1, 2, 3, 4, 5 ## Identifywhich model to use for SD
 ## source(here::here("src/diagnosticsAndInference.R"))
 nTemps                = 4 # 8 12 16 20 ## Number of temperatures in APT samplers
 thin                  = 10
-nMcmcSamples          = 1000 # 1000
+nMcmcSamples          = 20 # 1000 # 1000
 setConstantsElsewhere = TRUE ## Prevents a redefinition in modelDefinition.R
 
 ###############
@@ -180,7 +180,7 @@ nimPrint("####################")
 nimPrint("PLOTTING PROPORTIONS")
 nimPrint("####################")
 samplesFileStem <- samplesFileStem %>% sub(pat="-", rep="")
-pdf(file = here( paste0("figures/",samplesFileStem, "_nMCMC-",nMcmcSamples, "_proportions.pdf")))
+pdf(file = here( paste0("figuresAug/",samplesFileStem, "_nMCMC-",nMcmcSamples, "_proportions.pdf")))
 for(iTree in 1:nTrees) {
   iMeteo = min(iMeteoForObs[[iTree]]):max(iMeteoForObs[[iTree]])
   nSteps = length(iMeteo)
@@ -277,15 +277,18 @@ devQuantiles  = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec, nQuantiles
 devQuantiles2 = array(NA, dim = c(nMcmcSamples, nStagesDev, lTempVec, nQuantiles))
 for (iStage in 1:nStagesDev) {
   for (iMcmc in 1:nMcmcSamples) {
-    devQuantiles[iMcmc,iStage,1:lTempVec,1:nQuantiles] = t(apply(devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2], 1, function(x) qlnorm(p=pVec, x[1], x[2])))
+    ## For each row of MCMC, calculate 1%, 50% and 99% percentiles of development function f(Delta|paras)
+    devQuantiles[iMcmc,iStage,1:lTempVec,1:nQuantiles] = t(apply(devLogMeanSD[iMCMC, iStage, 1:lTempVec, 1:2], 1, function(x) qlnorm(p=pVec, meanlog=x[1], sdlog=x[2])))
+    ## Check these values by calculating via a more readable (i.e. no apply) method
     for (iTemp in 1:lTempVec) {
-      devQuantiles2[iMcmc,iStage,iTemp,1:nQuantiles] = qlnorm(p=pVec, devLogMeanSD[iMCMC, iStage, iTemp, 1], devLogMeanSD[iMCMC, iStage, iTemp, 2])
+      devQuantiles2[iMcmc,iStage,iTemp,1:nQuantiles] = qlnorm(p=pVec, meanlog=devLogMeanSD[iMCMC, iStage, iTemp, 1], sdlog=devLogMeanSD[iMCMC, iStage, iTemp, 2])
     }
   }
 }
 ## Check for NAs
 sum(is.na(devQuantiles))
 ## Check for differences
+all(devQuantiles == devQuantiles2) ## The two methods give identical results
 sum(devQuantiles != devQuantiles2)
 
 # Compare devQuantiles & devQuantiles2
@@ -321,7 +324,7 @@ nimPrint("PLOT devmean")
 nimPrint("############")
 devMean[iMCMC,iStage,1:lTempVec]
 EdevMean[iStage,1:lTempVec]
-pdf(here::here(paste0("figures/model",SDmodel, "_nMcmc-",nMcmcSamples,"_devKernels.pdf")))
+pdf(here::here(paste0("figuresAug/model",SDmodel, "_nMcmc-",nMcmcSamples,"_devKernels.pdf")))
 for (iStage in 1:nStagesDev) {
   meanQuantCols = c("red", "blue")
   meanQuantCICols = meanQuantCols
@@ -338,11 +341,11 @@ for (iStage in 1:nStagesDev) {
        main=paste("Stage", iStage)
        )
   abline(h=0, col="grey")
-  polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,1],rev(CIdevQuantiles[iStage,1:lTempVec,3,1])),col = meanQuantCICols[2], border = meanQuantCICols[2])
-  polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,2],rev(CIdevQuantiles[iStage,1:lTempVec,3,2])),col = meanQuantCICols[2], border = meanQuantCICols[2])
-#polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
-  #polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,3],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
-  # polygon(c(tempVec,rev(tempVec)),c(CIdevMean[iStage,1:lTempVec,1],rev(CIdevMean[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1])
+  ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,1],rev(CIdevQuantiles[iStage,1:lTempVec,3,1])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(CIdevQuantiles[iStage,1:lTempVec,1,2],rev(CIdevQuantiles[iStage,1:lTempVec,3,2])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(EdevQuantiles[iStage,1:lTempVec,1],rev(EdevQuantiles[iStage,1:lTempVec,3])),col = meanQuantCICols[2], border = meanQuantCICols[2])
+  ## polygon(c(tempVec,rev(tempVec)),c(CIdevMean[iStage,1:lTempVec,1],rev(CIdevMean[iStage,1:lTempVec,2])),col = meanQuantCICols[1], border = meanQuantCICols[1])
   ## lines(tempVec, CIdevMean[iStage,1:lTempVec,1], lty=2, col=meanQuantCols[1])
   ## lines(tempVec, CIdevMean[iStage,1:lTempVec,2], lty=2, col=meanQuantCols[1])
 }
@@ -363,7 +366,7 @@ dev.off()
 ## qlnorm(p=c(0.01, 0.5, 0.99), -16.43441, 5.398823)
 ## summary(rlnorm(n=1E4, -16.43441, 5.398823))
 
-## # pdf(file = here(paste0("figures/model",SDmodel,"_devKernelContinuous.pdf")))
+## # pdf(file = here(paste0("figuresAug/model",SDmodel,"_devKernelContinuous.pdf")))
 ## par(mfrow=c(3,2))
 ## for (iStage in 1:nStagesDev) {
 ##   for (iQuant in 1:nQuantiles) {
